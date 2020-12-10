@@ -1,6 +1,6 @@
 ---
-title: "F-Replicate-Bias Behind Bars- Su"
-subtitle: ""
+title: "Replicate 'Bias Behind Bars' under Bayesian setting"
+subtitle: "Logistic regression on risk scores of prison inmates under Bayesian setting"
 author: "Su"
 thanks: "Code and data are available at: LINK."
 date: "`r format(Sys.time(), '%d %B %Y')`"
