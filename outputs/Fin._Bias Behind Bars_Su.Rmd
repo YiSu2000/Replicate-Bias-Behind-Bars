@@ -1,0 +1,54 @@
+---
+title: "F-Replicate-Bias Behind Bars- Su"
+subtitle: ""
+author: "Su"
+thanks: "Code and data are available at: LINK."
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: |
+  | Racial discrimination against the First Nations has been a problem in Canada since the first colonist step on the sides of St. Lawrence river. While this problem has been a controversial among the general public, is it still the possible case in the scope of prison systems? The Globe and Mail investigation indicates that Black and Indigenous prisoners experience worse assessment scores solely base on their race. In this report, we focus on replicating the results of the Globe's investigation under Bayesian settings ,instead of the original Frequentist settings, using the same dataset from Correctional Service of Canada.
+  | **keywords:** Logistic Regression, Bias, Racial Discrimination, Correctional Service of Canada, The Globe and Mail
+output:
+  bookdown::pdf_document2:
+toc: FALSE
+bibliography: references.bib
+header-includes:
+ \usepackage{float}
+---
+
+```{r setup, include=FALSE, echo = FALSE, message = FALSE, warning=FALSE}
+library(knitr)
+library(broom)
+library(skimr)
+library(naniar)
+library(tidyverse)
+library(haven)
+library(tidybayes)
+library(ggplot2)
+library(brms)
+library(statebins)
+library(kableExtra)
+library(data.table)
+```
+
+# Introduction
+
+For majority of the general public, the part of the world behind bars is likely to be one of the least favorable place to be. Not only because that prisons have a less favorable physical environment, but also because it is filled by heinous criminals. This is, to some extent, a known fact. However, are the prisoners really all that heinous? The answer would be no. Although they all did commit severe crime to be put in the prison, but it does not necessary mean they are all heinous since the severity of their crime are all different. In the prison system, there are various scores, designed by the Correctional Service of Canada (CSC), assessing a criminal's potential threat to inmates of the prison, and also the potential ability to reintegrate to the society after their sentence. These scores are crucial to the inmates since these determines the overall correctional plan and will affect the inmates' life after sentence.
+
+In general, these scores are risk assessments, assessing an inmate's future risk to public using all past and present information for design of a correctional plan. The problem arises from these scores, while these measures are crucial to a prisoner's in-prison life and out-prison life, these are not all determined under a standardized and objectective measure, thus bias naturally exist when subjectivity enter. Some of these are measured purely by standardized tests and objective data, but some are purely based on officer's judgment. In case of bias due to subjectivity, it is natural to consider some of the long-lasted bias among the general public like race and gender bias. The Globe and Mail investigation [@citebias] identified that there is bias against Black and First Nations (indigenous) inmates among the assessments. The focus of this report is to replicate the Globe's findings using a Bayesian setting instead of the original frequentist setting, and examine if the finding still hold statistically. We replicate exactly the original procedure using the same dataset originally obtained from CSC.
+
+In order to replicate the result of the Globe [@citemethod], we focus on two of the risk scores, the offender security level and reintegration level, for having the largest impact on an inmate's life behind the bars. Both of these scores are assessed by the CSC officers using a series of specialized tests and interviews, which are all assigned when the inmates first arrive at the federal prison. The offender security level is a set of measure from minimum, medium, to maximum. Each inmate with following measure will be assigned to facility or area suiting their security level, for example, an inmate with maximum score will be assigned to area with maximum security level. The reintegration score estimates an inmate's potential to re-enter the society without committing a new offend, and this score is also crucial for the parole hearings. The reintegration is also designed to have low, medium, and high levels, assigned using a set of actuarial and non-actuarial assessments. More detailed discussion of the scores is included in *Section 2*. 
+
+For the remaining part of the report, *Section 2* includes discussion on the CSC dataset, and some exploratory data analysis for deeper understanding of the dataset. The specific procedure of the investigation by the Globe and the logistic models used are included in *Section 3*. The model results and comparisons to the original results are included in *Section 4*. Lastly, we make discuss about some potential future improvements of the procedure, and draw conclusion base on the comparison results in *Section 5*.
+
+# The Globe and Mail, and CSC Data
+
+
+# Model
+
+# Results
+
+# Discussion
+
+\newpage
+
+# References
