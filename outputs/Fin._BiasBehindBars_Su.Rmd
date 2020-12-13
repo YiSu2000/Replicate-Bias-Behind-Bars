@@ -1,0 +1,168 @@
+---
+title: "Replicate 'Bias Behind Bars' under Bayesian setting"
+subtitle: "Logistic regression on risk scores of prison inmates under Bayesian setting"
+author: "Su"
+thanks: "Code and data are available at: LINK."
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: |
+  | Racial discrimination against the First Nations has been a problem in Canada since the first colonist step on the sides of St. Lawrence river. While this problem has been a controversial among the general public, is it still the possible case in the scope of prison systems? The Globe and Mail investigation indicates that Black and Indigenous prisoners experience worse assessment scores solely base on their race. In this report, we focus on replicating the results of the Globe's investigation under Bayesian settings ,instead of the original Frequentist settings, using the same dataset from Correctional Service of Canada.
+  | **keywords:** Logistic Regression, Bias, Racial Discrimination, Correctional Service of Canada, The Globe and Mail
+output:
+  bookdown::pdf_document2:
+toc: FALSE
+bibliography: references.bib
+header-includes:
+ \usepackage{float}
+---
+
+```{r setup, include=FALSE, echo = FALSE, message = FALSE, warning=FALSE}
+library(knitr)
+library(broom)
+library(skimr)
+library(naniar)
+library(tidyverse)
+library(haven)
+library(tidybayes)
+library(ggplot2)
+library(brms)
+library(statebins)
+library(kableExtra)
+library(data.table)
+RAW <- read_csv("/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/inputs/The_Globe_and_Mail_CSC_OMS_2012-2018_20201022235635/The_Globe_and_Mail_CSC_OMS_2012-2018_20201022235635.csv")
+```
+
+# Introduction
+
+For majority of the general public, the part of the world behind bars is likely to be one of the least favorable place to be. Not only because that prisons have a less favorable physical environment, but also because it is filled by heinous criminals. This is, to some extent, a known fact. However, are the prisoners really all that heinous? The answer would be no. Although they all did commit severe crime to be put in the prison, but it does not necessary mean they are all heinous since the severity of their crime are all different. In the prison system, there are various scores, designed by the Correctional Service of Canada (CSC), assessing a criminal's potential threat to inmates of the prison, and also the potential ability to reintegrate to the society after their sentence. These scores are crucial to the inmates since these determines the overall correctional plan and will affect the inmates' life after sentence.
+
+In general, these scores are risk assessments, assessing an inmate's future risk to public using all past and present information for design of a correctional plan. The problem arises from these scores, while these measures are crucial to a prisoner's in-prison life and out-prison life, these are not all determined under a standardized and objectective measure, thus bias naturally exist when subjectivity enter. Some of these are measured purely by standardized tests and objective data, but some are purely based on officer's judgment. In case of bias due to subjectivity, it is natural to consider some of the long-lasted bias among the general public like race and gender bias. Racial discrimination against the First Nations have been a problem in North America even before Canada exist as a country, and it would not be surprise if some degree of discrimination exist among prison systems. The Globe and Mail investigation [@citebias] identified that there is bias against Black and First Nations (indigenous) inmates among the assessments. The focus of this report is to replicate the Globe's findings using a Bayesian setting instead of the original frequentist setting, and examine if the finding still hold statistically. We replicate exactly the original procedure using the same dataset originally obtained from CSC [@citecsc].
+
+However, the article introducing the original methodology [@citemethod] is not a detailed instruction paper and there are many hidden details to the exact methodology. When encountering such an issue, we proceed using our interpretation to the context of the procedure. The final result is expected to be slightly different with the article due to these issues, as well as the use of the Bayesian settings. However, the result should agree with the article that there are some bias against Black and Indigenous inmates on CSC assessment scores. We will discuss more detail on the hidden detail interpretation issues in the sections that encounters it.
+
+In order to replicate the result of the Globe [@citemethod], we focus on two of the risk scores, the offender security level and reintegration level, for having the largest impact on an inmate's life behind the bars. Both of these scores are assessed by the CSC officers using a series of specialized tests and interviews, which are all assigned when the inmates first arrive at the federal prison. The offender security level is a set of measure from minimum, medium, to maximum. Each inmate with following measure will be assigned to facility or area suiting their security level, for example, an inmate with maximum score will be assigned to area with maximum security level. The reintegration score estimates an inmate's potential to re-enter the society without committing a new offend, and this score is also crucial for the parole hearings. The reintegration is also designed to have low, medium, and high levels, assigned using a set of actuarial and non-actuarial assessments. More detailed discussion of the scores is included in *Section 2*. 
+
+For the remaining part of the report, *Section 2* includes discussion on the CSC dataset, and some exploratory data analysis for deeper understanding of the dataset. The specific procedure of the investigation by the Globe and the logistic models used are included in *Section 3*. The model results and comparisons to the original results are included in *Section 4*. Lastly, we make discuss about some potential future improvements of the procedure, and draw conclusion base on the comparison results in *Section 5*.
+
+# The CSC 2012-2018 Data 
+
+The article tested three models in total, two model assessing impact of race on probability of getting the worst offender security score and reintegration score, and one model assessing impact of reintegration score on probability of re-offending. Due to the time constraint of this report and ambiguity in the methodological instructions of the third model, we only replicate the first two model assessing the impact of race on the two scores.
+
+```{r data cleaning, echo = FALSE, message = FALSE}
+#skim(RAW)
+RAW <- RAW%>%filter(JURISDICTION == "FEDERAL")
+RAW <- RAW%>%drop_na(RACE, `OFFENDER SECURITY LEVEL`, 
+                     `STATIC/RISK`, `REINTEGRATION POTENTIAL`)
+#filtering all provincial jurisdictions gives us 741829 rows instead of the 741738 rows in the article. We left with 686540 rows after removing all NAs in variables that we need.
+
+RAW$RACE[RAW$`RACE GROUPING`=="Indigenous"] <- "Indigenous"
+#set the race to indigenous if their race is classified as indigenous
+
+RAW$RACE <- ifelse(RAW$RACE %in% c("White", "Black", "Indigenous"), RAW$RACE, "Other")
+#set all race other than white, black, and indigenous into "other"
+
+#although not said by the author, I recognize a significant amount of rows that have the same fiscal year id and offender id, what changes is the sentence, and everything else remains constant. This due to multiple offences and the system had to put multiple entries in to accommodate that, we make the assumption that an offender only gets a true record of scores each year.
+#so we remove all observations that are identical in all variable we test for other than offence id.
+RAW <- RAW[!duplicated(RAW[c("FISCAL YEAR", "SENTENCE ID", 
+                             "OFFENDER NUMBER", "RACE", "GENDER",
+                             "OFFENDER SECURITY LEVEL", "REINTEGRATION POTENTIAL", 
+                             "AGE", "STATIC/RISK", "SENTENCE TYPE")]),]
+#this reduced our sample size significantly, which is why the subset of model data have such a small sample size compare to the original full dataset.
+```
+
+## Security Socre Model Subset
+
+```{r model1 data, echo = FALSE, message = FALSE}
+##this is the specific subset of data for model 1
+data1 <- RAW%>%group_by(`OFFENDER NUMBER`)%>%filter(AGE == min(AGE))
+data1 <- data1%>%filter(`IN CUSTODY/COMMUNITY` == "In Custody")
+##we assume the inmate's record that are in custody with earliest age is what author mean by "who just begin sentence"
+##we have 2 times the article suggested model1 dataset size.
+data1$MAXSEC <- ifelse(data1$`OFFENDER SECURITY LEVEL` == "MAXIMUM", 1, 0)
+#create dummy for if the offender got the worst security score
+colnames(data1)[1] <- "fiscalyear"
+colnames(data1)[18] <- "static"
+colnames(data1)[11] <- "sentencetype"
+#remove the spaces and special characters for brms function
+
+data1m <- data1%>%filter(GENDER == "MALE")
+data1f <- data1%>%filter(GENDER == "FEMALE")
+
+#seperate into male and female dataset
+```
+
+
+## Reintegration Score Model Subset
+
+```{r model2 data, echo = FALSE, message = FALSE}
+#this is the specific subset of data for model 2
+data2 <- RAW%>%filter(`IN CUSTODY/COMMUNITY` == "In Custody")
+#we have agains slightly higher number of observations
+data2$LOWINT <- ifelse(data2$`REINTEGRATION POTENTIAL` == "LOW", 1, 0)
+#dummy for if the offender got the worst reintegration score
+colnames(data2)[1] <- "fiscalyear"
+colnames(data2)[18] <- "static"
+colnames(data2)[11] <- "sentencetype"
+#remove the spaces and special characters for brms function
+
+data2m <- data2%>%filter(GENDER == "MALE")
+data2f <- data2%>%filter(GENDER == "FEMALE")
+#seperate into male and female dataset
+```
+
+# Model
+
+## Model 1: Probability of Getting Maximum Offender Security Score
+
+```{r model1, echo = FALSE, message = FALSE}
+model1m <- brm(MAXSEC ~ relevel(factor(RACE), ref = "White") + AGE + static + fiscalyear + sentencetype, 
+            data = data1m, 
+            family = bernoulli(),
+            seed = 6431,
+            #seed not perfect in brm, but better than nothing
+            silent = TRUE,
+            refresh = 0,
+            #the above option turns off all message completely wen knitting
+            file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model1m")
+
+summary(model1m)
+
+model1f <- brm(MAXSEC ~ RACE + AGE + static + fiscalyear + sentencetype, 
+            data = data1f, 
+            family = bernoulli(),
+            seed = 6431,
+            #seed not perfect in brm, but better than nothing
+            silent = TRUE,
+            refresh = 0,
+            #the above option turns off all message completely wen knitting
+            file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model1f")
+```
+
+
+## Model 2: Probability of Getting Low Reintegration Score
+
+```{r}
+
+```
+
+
+# Results
+
+## Model 1
+
+```{r}
+
+```
+
+
+## Model 2
+
+```{r}
+
+```
+
+
+# Discussion and Conclusion
+
+\newpage
+
+# References
