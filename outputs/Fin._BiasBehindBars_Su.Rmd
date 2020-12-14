@@ -35,9 +35,9 @@ RAW <- read_csv("/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/in
 
 For majority of the general public, the part of the world behind bars is likely to be one of the least favorable place to be. Not only because that prisons have a less favorable physical environment, but also because it is filled by heinous criminals. This is, to some extent, a known fact. However, are the prisoners really all that heinous? The answer would be no. Although they all did commit severe crime to be put in the prison, but it does not necessary mean they are all heinous since the severity of their crime are all different. In the prison system, there are various scores, designed by the Correctional Service of Canada (CSC), assessing a criminal's potential threat to inmates of the prison, and also the potential ability to reintegrate to the society after their sentence. These scores are crucial to the inmates since these determines the overall correctional plan and will affect the inmates' life after sentence.
 
-In general, these scores are risk assessments, assessing an inmate's future risk to public using all past and present information for design of a correctional plan. The problem arises from these scores, while these measures are crucial to a prisoner's in-prison life and out-prison life, these are not all determined under a standardized and objectective measure, thus bias naturally exist when subjectivity enter. Some of these are measured purely by standardized tests and objective data, but some are purely based on officer's judgment. In case of bias due to subjectivity, it is natural to consider some of the long-lasted bias among the general public like race and gender bias. Racial discrimination against the First Nations have been a problem in North America even before Canada exist as a country, and it would not be surprise if some degree of discrimination exist among prison systems. The Globe and Mail investigation [@citebias] identified that there is bias against Black and First Nations (indigenous) inmates among the assessments. The focus of this report is to replicate the Globe's findings using a Bayesian setting instead of the original frequentist setting, and examine if the finding still hold statistically. We replicate exactly the original procedure using the same dataset originally obtained from CSC [@citecsc].
+In general, these scores are risk assessments, assessing an inmate's future risk to public using all past and present information for design of a correctional plan. The problem arises from these scores, while these measures are crucial to a prisoner's in-prison life and out-prison life, these are not all determined under a standardized and objectective measure, thus bias naturally exist when subjectivity enter. Some of these are measured purely by standardized tests and objective data, but some are purely based on officer's judgment. In case of bias due to subjectivity, it is natural to consider some of the long-lasted bias among the general public like race and gender bias. Racial discrimination against the First Nations have been a problem in North America even before Canada exist as a country, and it would not be surprise if some degree of discrimination exist among prison systems. The Globe and Mail investigation [@citebias] identified that there is bias against Black and First Nations (indigenous) inmates among the assessments. The focus of this report is to replicate the Globe's findings using a Bayesian setting instead of the original Frequentist setting, and examine if the findings still hold statistically. We replicate exactly the original procedure using the same dataset originally obtained from CSC [@citecsc]. However, instead of replicating all three logistic models, we only replicate the first two model analyzing the impact of race on security and reintegration scores.
 
-However, the article introducing the original methodology [@citemethod] is not a detailed instruction paper and there are many hidden details to the exact methodology. When encountering such an issue, we proceed using our interpretation to the context of the procedure. The final result is expected to be slightly different with the article due to these issues, as well as the use of the Bayesian settings. However, the result should agree with the article that there are some bias against Black and Indigenous inmates on CSC assessment scores. We will discuss more detail on the hidden detail interpretation issues in the sections that encounters it.
+The article introducing the original methodology [@citemethod] is not a detailed instruction paper and there are many hidden details to the exact methodology. When encountering such an issue, we proceed using our interpretation to the context of the procedure. The final result is expected to be slightly different with the article due to these issues, as well as the use of the Bayesian settings. However, the result should agree with the article that there are some bias against Black and Indigenous inmates on CSC assessment scores. We will discuss more detail on the hidden detail interpretation issues in the sections that encounters it.
 
 In order to replicate the result of the Globe [@citemethod], we focus on two of the risk scores, the offender security level and reintegration level, for having the largest impact on an inmate's life behind the bars. Both of these scores are assessed by the CSC officers using a series of specialized tests and interviews, which are all assigned when the inmates first arrive at the federal prison. The offender security level is a set of measure from minimum, medium, to maximum. Each inmate with following measure will be assigned to facility or area suiting their security level, for example, an inmate with maximum score will be assigned to area with maximum security level. The reintegration score estimates an inmate's potential to re-enter the society without committing a new offend, and this score is also crucial for the parole hearings. The reintegration is also designed to have low, medium, and high levels, assigned using a set of actuarial and non-actuarial assessments. More detailed discussion of the scores is included in *Section 2*. 
 
@@ -123,10 +123,9 @@ model1m <- brm(MAXSEC ~ relevel(factor(RACE), ref = "White") + AGE + static + fi
             refresh = 0,
             #the above option turns off all message completely wen knitting
             file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model1m")
+mcmc_plot(model1m, type = "trace")
 
-summary(model1m)
-
-model1f <- brm(MAXSEC ~ RACE + AGE + static + fiscalyear + sentencetype, 
+model1f <- brm(MAXSEC ~ relevel(factor(RACE), ref = "White") + AGE + static + fiscalyear + sentencetype, 
             data = data1f, 
             family = bernoulli(),
             seed = 6431,
@@ -135,13 +134,36 @@ model1f <- brm(MAXSEC ~ RACE + AGE + static + fiscalyear + sentencetype,
             refresh = 0,
             #the above option turns off all message completely wen knitting
             file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model1f")
+mcmc_plot(model1f, type = "trace")
+#no divergence during the chains in both model
 ```
 
 
 ## Model 2: Probability of Getting Low Reintegration Score
 
-```{r}
+```{r model2, echo = FALSE, MESSAGE = FALSE}
+model2m <- brm(LOWINT ~ relevel(factor(RACE), ref = "White") + AGE + static + fiscalyear + sentencetype, 
+            data = data2m, 
+            family = bernoulli(),
+            seed = 6431,
+            #seed not perfect in brm, but better than nothing
+            silent = TRUE,
+            refresh = 0,
+            #the above option turns off all message completely wen knitting
+            file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model2m")
+mcmc_plot(model2m, type = "trace")
 
+model2f <- brm(LOWINT ~ relevel(factor(RACE), ref = "White") + AGE + static + fiscalyear + sentencetype, 
+            data = data2f, 
+            family = bernoulli(),
+            seed = 6431,
+            #seed not perfect in brm, but better than nothing
+            silent = TRUE,
+            refresh = 0,
+            #the above option turns off all message completely wen knitting
+            file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model2f")
+mcmc_plot(model2f, type = "trace")
+#no divergence during the chains in both model
 ```
 
 
