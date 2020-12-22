@@ -1,21 +1,27 @@
 ---
-title: "Replicate 'Bias Behind Bars' under Bayesian setting"
-subtitle: "Logistic regression on risk scores of prison inmates under Bayesian setting"
-author: "Su"
-thanks: "Code and data are available at: LINK."
+title: "Replicating 'Bias Behind Bars' under Bayesian setting"
+subtitle: "Logistic regression on sssessment scores of Canadian inmates under Bayesian setting"
+author: "Yi Su"
+thanks: "Code available at: https://github.com/YiSu2000/Replicate-Bias-Behind-Bars"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 abstract: |
-  | Racial discrimination against the First Nations has been a problem in Canada since the first colonist step on the sides of St. Lawrence river. While this problem has been a controversial among the general public, is it still the possible case in the scope of prison systems? The Globe and Mail investigation indicates that Black and Indigenous prisoners experience worse assessment scores solely base on their race. In this report, we focus on replicating the results of the Globe's investigation under Bayesian settings ,instead of the original Frequentist settings, using the same dataset from Correctional Service of Canada.
-  | **keywords:** Logistic Regression, Bias, Racial Discrimination, Correctional Service of Canada, The Globe and Mail
+  | Racial discrimination against the First Nations has been a problem in Canada since the first colonist step on the sides of the St. Lawrence river. While this problem has been controversial among the general public, is it still a possible case in the scope of prison systems? The Globe and Mail investigation indicates that Black and Indigenous inmates experience worse assessment scores solely based on their race. In this report, we focus on replicating the results of the Globe's investigation under Bayesian settings, instead of the original Frequentist settings, using the same dataset from the Correctional Service of Canada. Although the magnitudes are slightly different, the replicated results agree with the Globe's findings that Black and Indigenous inmates do get worse assessment scores base on their race.
+  | **keywords:** Logistic Regression, Bias, Racial Discrimination, Correctional Service of Canada, The Globe and Mail, Bayesian
 output:
   bookdown::pdf_document2:
 toc: FALSE
 bibliography: references.bib
 header-includes:
  \usepackage{float}
+ \floatplacement{figure}{H}
+ ##this helps to keep figures in place
+
+##This file is the orginal rmarkdown file for the repot "Replicating 'Bias Behind Bars' under Bayesian setting". It contains all codes to produce the results discussed in the report, including the data manipulation steps to the CSC dataset. However, the CSC dataset is not mine to share, and the file path to read the CSC dataset is no longer valid. See readme for the link to Tom Cardoso's share of the CSC dataset.
+##LICENSE: MIT
 ---
 
 ```{r setup, include=FALSE, echo = FALSE, message = FALSE, warning=FALSE}
+#set up for all packages used in this project
 library(knitr)
 library(broom)
 library(skimr)
@@ -25,29 +31,35 @@ library(haven)
 library(tidybayes)
 library(ggplot2)
 library(brms)
-library(statebins)
 library(kableExtra)
 library(data.table)
 library(scales)
+library(pROC)
+
+#read in the CSC dataset, this should be specific to your file location, however, we are not allowed to distribute the CSC dataset.
 RAW <- read_csv("/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/inputs/The_Globe_and_Mail_CSC_OMS_2012-2018_20201022235635/The_Globe_and_Mail_CSC_OMS_2012-2018_20201022235635.csv")
 ```
 
 # Introduction
 
-For majority of the general public, the part of the world behind bars is likely to be one of the least favorable place to be. Not only because that prisons have a less favorable physical environment, but also because it is filled by heinous criminals. This is, to some extent, a known fact. However, are the prisoners really all that heinous? The answer would be no. Although they all did commit severe crime to be put in the prison, but it does not necessary mean they are all heinous since the severity of their crime are all different. In the prison system, there are various scores, designed by the Correctional Service of Canada (CSC), assessing a criminal's potential threat to inmates of the prison, and also the potential ability to reintegrate to the society after their sentence. These scores are crucial to the inmates since these determines the overall correctional plan and will affect the inmates' life after sentence.
+For the majority of the general public, the part of the world behind bars is likely to be one of the least favorable places to be. Not only because that prisons have a less favorable physical environment, but also because it is filled by heinous criminals. This is, to some extent, a known fact. However, are the prisoners really all that heinous? The answer would be no. Although they all did commit a severe crime to be put in prison, it does not necessarily mean they are all heinous since the severity of their crimes is different. In the prison system, there are various scores, designed by the Correctional Service of Canada (CSC), assessing a criminal's potential threat to inmates of the prison, and also the potential ability to reintegrate to the society after their sentence. These scores are crucial to the inmates since these determine the overall correctional plan and will affect the inmates' life after sentence.
 
-In general, these scores are risk assessments, assessing an inmate's future risk to public using all past and present information for design of a correctional plan. The problem arises from these scores, while these measures are crucial to a prisoner's in-prison life and out-prison life, these are not all determined under a standardized and objective measure, thus bias naturally exist when subjectivity enter. Some of these are measured purely by standardized tests and objective data, but some are purely based on officer's judgment. In case of bias due to subjectivity, it is natural to consider some of the long-lasted bias among the general public like race and gender bias. Racial discrimination against the First Nations have been a problem in North America even before Canada exist as a country, and it would not be surprise if some degree of discrimination exist among prison systems. The Globe and Mail investigation [@citebias] identified that there is bias against Black and First Nations (indigenous) inmates among the assessments. The focus of this report is to replicate the Globe's findings using a Bayesian setting instead of the original Frequentist setting, and examine if the findings still hold statistically. We replicate exactly the original procedure using the same dataset originally obtained from CSC [@citecsc]. However, instead of replicating all three logistic models, we only replicate the first two model analyzing the impact of race on security and reintegration scores.
+In general, these scores are risk assessments, assessing an inmate's future risk to the public using all past and present information for the design of a correctional plan. The problem arises from these scores, while these measures are crucial to a prisoner's in-prison life and out-prison life, these are not all determined under a standardized and objective measure, thus bias naturally exists when subjectivity enter. Some of these are measured purely by standardized tests and objective data, but some are purely based on the officer's judgment. In case of bias due to subjectivity, it is natural to consider some of the long-lasted biases among the general public like race and gender bias. Racial discrimination against the First Nations has been a problem in North America even before Canada existed as a country, and it would not be a surprise if some degree of discrimination exists among prison systems. The Globe and Mail investigation [@citebias] identified that there is a bias against Black and First Nations (indigenous) inmates among the assessments. Through a story-like article, Tom Cardoso explains the potential issue in CSC's assessment systems and the impact of such an issue on an inmate's life both during and after the sentence.
 
-The article introducing the original methodology [@citemethod] is not a detailed instruction paper and there are many hidden details to the exact methodology. When encountering such an issue, we proceed using our interpretation to the context of the procedure. The final result is slightly different with the article due to these issues, as well as the use of the Bayesian settings. However, the result should agree with the article that there are some bias against Black and Indigenous inmates on CSC assessment scores. We will discuss more detail on the hidden detail interpretation issues in the sections that encounters it. This reports validates the reproducibility on the first two statistical models discussed in "Bias Behind Bars" 
+The focus of this report is to replicate the Globe's findings using a Bayesian setting instead of the original Frequentist setting and examine if the findings still hold statistically. We replicate exactly the original procedure using the same dataset originally obtained from CSC [@citecsc]. However, instead of replicating all three logistic models, we only replicate the first two models analyzing the impact of race on security and reintegration scores. Reproducibility of an article is an important factor for the article to be persuasive to its audience, and it can be assessed through replicating its results. 
 
-In order to replicate the result of the Globe [@citemethod], we focus on two of the assessment scores, the offender security level and reintegration level, for having the largest impact on an inmate's life behind the bars. Both of these scores are assessed by the CSC officers using a series of specialized tests and interviews, which are all assigned when the inmates first arrive at the federal prison. The offender security level is a set of measure from minimum, medium, to maximum, and maximum bring the 'worst' score. Each inmate with following measure will be assigned to facility or area suiting their security level, for example, an inmate with maximum score will be assigned to area with maximum security level. The reintegration score estimates an inmate's potential to re-enter the society without committing a new offend, and this score is also crucial for the parole hearings. The reintegration is designed to have low, medium, and high levels, assigned using a set of actuarial and non-actuarial assessments, and low bring the 'worst' score. More detailed discussion of the scores is included in *Section 2.1 & 2.2*. 
+Although the original codes are not for public shares, Tom did post a methodology instruction article titled "How we did it" [@citemethod]. This article introducing the original methodology of "Bias Behind Bars" is not a detailed instruction paper and there are many hidden details to the exact methodology. When encountering such an issue, we proceed using our interpretation of the context of the procedure. The final result is slightly different from the article due to these issues, as well as the use of Bayesian settings. However, the result should agree with the article that there is some bias against Black and Indigenous inmates on CSC assessment scores. We will discuss more detail on the hidden detail interpretation issues in the sections that encounter it. This report validates the reproducibility of the first two statistical models discussed in "Bias Behind Bars". In this report, "Bias Behind Bars" is referred to as the article, and "How we did it" is referred to as the methodology instruction.
 
-For the remaining part of the report, *Section 2* includes discussion on the CSC dataset, and some exploratory data analysis for deeper understanding of the dataset. The specific procedure of the investigation by the Globe and the logistic models used are included in *Section 3*. The model results and comparisons to the original results are included in *Section 4*. Lastly, we make discuss about some potential future improvements of the procedure, and draw conclusion base on the comparison results in *Section 5*.
+In order to replicate the result of the Globe [@citemethod], we focus on two of the assessment scores, the offender security level, and reintegration level, for having the largest impact on an inmate's life behind the bars. Both of these scores are assessed by the CSC officers using a series of specialized tests and interviews, which are all assigned when the inmates first arrive at the federal prison. The offender security level is a set of measures from minimum, medium, to maximum, and maximum bring the 'worst' score. Each inmate with the following measure will be assigned to a facility or area suiting their security level, for example, an inmate with a maximum score will be assigned to an area with a maximum security level. The reintegration score estimates an inmate's potential to re-enter society without committing a new offend, and this score is also crucial for the parole hearings. The reintegration is designed to have low, medium, and high levels, assigned using a set of actuarial and non-actuarial assessments, and low bring the 'worst' score. A more detailed discussion of the scores is included in *Section 2.1 & 2.2*. 
+
+For the remaining part of the report, *Section 2* includes a discussion on the CSC dataset and some exploratory data analysis for a deeper understanding of the dataset. The specific procedure of the investigation by the Globe and the logistic models used are included in *Section 3*. The model results and comparisons to the original results are included in *Section 4*. Lastly, we make discuss some potential future improvements to the procedure and draw conclusions base on the comparison results in *Section 5*.
 
 # The CSC 2012-2018 Data 
 
 ```{r data cleaning, echo = FALSE, message = FALSE}
 #skim(RAW)
+#uncomment previous line to check for missing values
+
 RAW <- RAW%>%filter(JURISDICTION == "FEDERAL")
 RAW <- RAW%>%drop_na(RACE, `OFFENDER SECURITY LEVEL`, 
                      `STATIC/RISK`, `REINTEGRATION POTENTIAL`)
@@ -68,15 +80,16 @@ RAW <- RAW[!duplicated(RAW[c("FISCAL YEAR", "SENTENCE ID",
 #this reduced our sample size significantly, which is why the subset of model data have such a small sample size compare to the original full dataset.
 ```
 
-The dataset we use is a Correctional Service of Canada (CSC) dataset from their inmate's database, and this dataset was requested through several levels of bureaucracy (including consent from head of CSC) by Tom Cordoso, the author of "Bias Behind Bars" [@citebias]. The dataset records inmate entries from 2012 to 2018, and for that reason, it can be considered as a panel dataset. It is free of all personal information, containing 744958 entries from 50116 inmates and 25 variables in total (technically it contains 26, but the "judge" variable was set all blank by CSC). Specifically, each year's data given by the CSC is a snapshot of their full database on March 31 of the corresponding year. March 31 is the end of CSC's fiscal year, and for that reason, the unit of year in this dataset is fiscal year like YE1112 means the fiscal year 2011-2012, instead of the "common" year unit like 2015. 
+The dataset we use is a Correctional Service of Canada (CSC) dataset from their inmate's database, and this dataset was requested through several levels of bureaucracy (including consent from the head of CSC) by Tom Cardoso, the author of "Bias Behind Bars" [@citebias]. The dataset records Canadian inmate entries within the CSC database from 2012 to 2018, and for that reason, it can be considered as a panel dataset. It is free of all personal information, containing 744958 entries from 50116 inmates and 25 variables in total (technically it contains 26, but the "judge" variable was set all blank by CSC). Specifically, each year's data given by the CSC is a snapshot of their full database on March 31 of the corresponding year. March 31 is the end of CSC's fiscal year, and for that reason, the unit of year in this dataset is a fiscal year like YE1112 means the fiscal year 2011-2012, instead of the "common" year unit like 2015. 
 
 Table \@ref(tab:tab1) displays an example of observations in the CSC dataset, restricting to variables we discuss and use in the context of "Bias Behind Bars" [@citebias]. All Tables (excluding model results) in this report was made in `R` [@citeR], using `kable` package [@citekable] and the extension of it `kableExtra` [@citeextras].
 
-The variables recorded include the offender security score and reintegration potential score, which are the two response variables we are interested in. As well as the characteristic that should be controlled to achieve less biased results, including age, gender, year recorded, sentence type, and static score. The sentence types are separated into determinate and indeterminate (life sentence), indicating severity of crime to some degree. The static score corresponds to the risk level of the offender, it is assigned using Static Factors Assessment, a CSC tool measuring the inmates’s past involvement with the criminal justice system (some are crime records). Thus, a higher static score means the inmate has had a decent record with the criminal justice system in the past, and thus indicates an inmate's crime history to some extent. Fiscal years and offence ID appear in CSC coding format, which are not unique to each inmate, but to that specific year or offence type. Meanwhile, offender ID and sentence ID are individual specific for every sentence the offender attempted between 2012-2018 fiscal years.
+The variables recorded include the offender security score and reintegration potential score, which are the two response variables we are interested in. As well as the characteristic that should be controlled to achieve less biased results, including age, gender, year recorded, sentence type, and static score. The sentence types are separated into determinate and indeterminate (a life sentence), indicating the severity of the crime to some degree. The static score corresponds to the risk level of the offender, it is assigned using Static Factors Assessment, a CSC tool measuring the inmates’ past involvement with the criminal justice system (some are crime records). Thus, a higher static score means the inmate has had a decent record with the criminal justice system in the past, and thus indicates an inmate's criminal history to some extent. Fiscal years and offense ID appear in CSC coding format, which is not unique to each inmate, but to that specific year or offense type. Meanwhile, offender ID and sentence ID are individual-specific for every sentence the offender attempted between the 2012-2018 fiscal years.
 
 ```{r tab1, echo = FALSE, message = FALSE}
 options(knitr.kable.NA = '')
 #use knitr to convert NAs into empty strings
+#displays some example entries of the CSC dataset
 kable(RAW[c(1,11,1111,22111),c(1,2,3,4,6,7,10,11,16,18,19,25)], 
       #example rows including variables we are interested in
       col.names = c("Fiscal Year", "Sentence ID", "Offender Number", "RACE", "Gender","Age", "Jurisdiction", "Sentence Type", "Offender Security Level", "Static", "REintegration Potential", "Offence ID"),
@@ -86,40 +99,49 @@ kable(RAW[c(1,11,1111,22111),c(1,2,3,4,6,7,10,11,16,18,19,25)],
 #fix position of the table
 ```
 
-The article also generated numerical offence severity, by hand-matching over 700 offence types recorded in this dataset with the Uniform Crime Reporting Survey's offence category codes (product of Statistics Canada). In that way, the new offence codes can be matched with Statistics Canada's weighting system for Crime Severity Index (CSI), which represents a numerical measure of severity of the offence. However, this procedure of hand-matching over 700 offence types is not very realistic given the time constraints of this report especially when it was available later in the time line. Nevertheless, we still thank Rohan Alexander for gathering the complete 2018 CSI weight document from Tom Cordoso (it is a public document, but is not open for download on Statistics Canada ). This action will cause our replicate model to have one less control variable to include, which is the most sever offence of an inmate. The resultant issues will be discussed in *Section 5*.
+The article also generated numerical offense severity, by hand-matching over 700 offense types recorded in this dataset with the Uniform Crime Reporting Survey's offense category codes (product of Statistics Canada). In that way, the new offense codes can be matched with Statistics Canada's weighting system for Crime Severity Index (CSI), which represents a numerical measure of severity of the offense. However, this procedure of hand-matching over 700 offense types is not very realistic given the time constraints of this report especially when it was available later in the timeline. Nevertheless, we still thank Rohan Alexander for gathering the complete 2018 CSI weight document from Tom Cardoso (it is a public document, but is not open for download on Statistics Canada ). This action will cause our replicate model to have one less control variable to include, which is the most severe offense of an inmate. The resultant issues will be discussed in *Section 5*.
 
-For the remaining of the report, we perform data manipulation, result visualization, and statistical model training in `R` [@citeR]. In the data manipulation steps, the packages `tidyr` [@citetidyr], `tidyverse` [@citetidyverse], `skimr` [@citeskimr], and `naniar` [@citenaniar] were used. The replication of data cleaning begins with removing all entries for inmates on provincial jurisdiction. This step was not an explicitly step written in the methodology instruction, it was included in a bracket, and we assume it is a necessary step to take. However, we already come to a difference with the article results in the first step, the author mentioned he had 741,738 entries after removing the provincial jurisdictions, but our result showed 741829 entries without missing value in jurisdictions. Fortunately this is not a major concern, but it rings the bell that differences should be expected in most further steps.
+For the remaining of the report, we perform data manipulation, result visualization, and statistical model training in `R` [@citeR]. In the data manipulation steps, the packages `tidyr` [@citetidyr], `tidyverse` [@citetidyverse], `skimr` [@citeskimr], and `naniar` [@citenaniar] were used. And all figures presented in this section were produced using the `ggplot2` [@citeggplot] package in `R`. The replication of data cleaning begins with removing all entries for inmates in provincial jurisdiction. This step was not explicitly step written in the methodology instruction, it was included in a bracket, and we assume it is a necessary step to take. However, we already come to a difference with the article results in the first step, the author mentioned he had 741,738 entries after removing the provincial jurisdictions, but our result showed 741829 entries without missing value in jurisdictions. Fortunately, this is not a major concern, but it rings the bell that differences should be expected in most further steps.
 
-Next, we implement our usual steps when dealing with raw data. We removed the missing values in the variables we are interested in (three sores, age, gender, year, sentence type). This reduce the dataset size to 686540 entries. For the 34 race categories in the dataset, we replicate the article methodology of classifying Indigenous races to "Indigenous" race category, and classify all races other than White, Black, and Indigenous, into "other" race category. This classification allows the model to focus on differences between White, Black, and Indigenous groups. The Indigenous classification reference we used in directly from the race grouping categories in the CSC dataset, while the article used Ontario’s Data Standards for the Identification and Monitoring of Systemic Racism, which is a guide for identifying racial disparities in data. Assuming the CSC follows a similar, and ethic classification system, we should not encounter major differences with the article, if any, in the classification of races.
+Next, we implement our usual steps when dealing with raw data. We removed the missing values in the variables we are interested in (three sores, age, gender, year, sentence type). This reduces the dataset size to 686540 entries. For the 34 race categories in the dataset, we replicate the article methodology of classifying Indigenous races to "Indigenous" race category, and classify all races other than White, Black, and Indigenous, into "other" race category. This classification allows the model to focus on differences between White, Black, and Indigenous groups. The Indigenous classification reference we used were directly from the race grouping categories in the CSC dataset, while the article used Ontario’s Data Standards for the Identification and Monitoring of Systemic Racism, which is a guide for identifying racial disparities in data. Assuming the CSC follows a similar, and ethical classification system, we should not encounter major differences with the article, if any, in the classification of races.
 
-Although not explicitly mentioned in the article, we recognized a significant amount of entries that share the same fiscal year ID, sentence ID, and offender ID, and the only difference between these entries are the offence IDs. The assumption to explain this phenomenon is that, when there are multiple offences in one 'crime action', the CSC system had to put multiple entries in to accommodate that, as offence ID and type only records one offence at a time. This assumption should be a plausible explanation since it is common to see crimes that involves break in, robbery, sexual assault, and use of violent force in one crime. After removing all replicated observations, the dataset size is reduced to 142700 entries. In *Section 2.1* and *Section 2.2*, the high degree of similarity in size of the model specific sub-dataset verifies that this action is appropriate. Even though there might be some differences in the details of judging replicated observations, our method should be similar to the actual procedure of the article to some degree.
+Although not explicitly mentioned in the article, we recognized a significant amount of entries that share the same fiscal year ID, sentence ID, and offender ID, and the only difference between these entries are the offense IDs. The assumption to explain this phenomenon is that when there are multiple offenses in one 'crime action', the CSC system had to put multiple entries in to accommodate that, as offense ID and type only records one offense at a time. This assumption should be a plausible explanation since it is common to see crimes that involve breaking into houses, robbery, sexual assault, and the use of violent force in one crime. After removing all replicated observations, the dataset size is reduced to 142700 entries. In *Section 2.1* and *Section 2.2*, the high degree of similarity in size of the model-specific sub-dataset verifies that this action is appropriate. Even though there might be some differences in the details of judging replicated observations, our method should be similar to the actual procedure of the article to some degree.
 
-Figure \@ref(fig:piechart) shows the distribution of race groups among the 20358 entries each representing an unique inmate in early 2016 ('early' since it's collected at end of 15-16 fiscal year). Indigenous inmates account for 23.67% of inmates in our data, this is slightly less than the article's composition of 25.5% Indigenous inmates in early 2016. The Black inmate proportion of 7.94% is slightly less than the article result of 8.7%, and the percentage of inmates other than Black, White, and Indigenous is 8.66%, which is lower than article result of 10.1%. These deviations suggest that, either our approach classify too many inmates as White, or something went different during the data cleaning steps. It is more likely to be the latter case since the White inmates remain untouched through out the race classifications. These differences are expected since the deviation from article results will cumulate throughout the procedure by assuming the specific steps taken to get the article results. By over-classifying more inmates as White, and less in all other race groups, we expect our model estimates to be different, but the significance of the effects should be similar overall.
+Figure \@ref(fig:piechart) shows the distribution of race groups among the 20358 entries each representing a unique inmate in early 2016 ('early' since it's collected at end of 15-16 fiscal year). Indigenous inmates account for 23.67% of inmates in our data, this is slightly less than the article's composition of 25.5% Indigenous inmates in early 2016. The Black inmate proportion of 7.94% is slightly less than the article result of 8.7%, and the percentage of inmates other than Black, White, and Indigenous is 8.66%, which is lower than the article result of 10.1%. These deviations suggest that either our approach classifies too many inmates as White, or something went different during the data cleaning steps. It is more likely to be the latter case since the White inmates remain untouched throughout the race classifications. These differences are expected since the deviation from article results will cumulate throughout the procedure by assuming the specific steps taken to get the article results. By over-classifying more inmates as White, and less in all other race groups, we expect our model estimates to be different, but the significance of the effects should be similar overall.
 
-```{r piechart, fig.cap = "Distribution of race in 2016", echo = FALSE, message = FALSE, out.width="80%"}
+```{r piechart, fig.cap = "Distribution of race in 2016", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold"}
 rawrep <- RAW%>%filter(`FISCAL YEAR` == "YE1516")
+#filtering for entries in early 2016
+
 cr <- count(rawrep, RACE)
 cr <- cr%>% 
   arrange(desc(RACE))%>%
   mutate(prop = n / sum(cr$n) *100) %>%
+  #count the number of inmates in each race, and calculate their percentage in the whole 2016 population.
   mutate(ypos = cumsum(prop)- 0.5*prop )
-
+  #calculate the position of these percentage labels in the pie chart
 par(pty = "s")
+#set graph to square shape
 
 pie <- cr%>%ggplot(aes(x= "", y = prop, fill = RACE))+
+  #create bar plot using proportion of inmates in each race
   geom_bar(stat="identity", width=1, color="white")+
   coord_polar("y", start=0)+
+  #this line creates a pie chart based on bar plot in ggplot2
   theme_minimal()+
+  #removes the boundary and backgrounds of ggplot
   theme(axis.text.x=element_blank(), axis.title.x = element_blank(), 
         axis.title.y = element_blank()) +
+  #removes the axis labels of the original bar plot
   geom_text(aes(y = prop/3 + c(0, cumsum(prop)[-length(prop)]), 
             label = percent(prop/100, accuracy = 0.01)))
+  #label the percentages
 pie
 ```
 
-Before introducing the model specific sub-datasets, it is important to check for any empirical results that might suggest any difference between race groups. Figure \@ref(fig:p1) shows the distribution of offender security scores/levels among the four race groups. In case of offender security scores, we are interested in the worst level, which is maximum. It can be seem that Indigenous and Black inmates do have a higher proportion of inmates with maximum security scores, a 5% points more on average than White inmates. Meanwhile, Indigenous and Black inmates have a significant less amount of minimum security scores comparing to White and Other inmates, indicating it is also the case that Indigenous and Black inmates have more medium security scores. 
+Before introducing the model-specific sub-datasets, it is important to check for any empirical results that might suggest any difference between race groups. Figure \@ref(fig:p1) shows the distribution of offender security scores/levels among the four race groups. In the case of offender security scores, we are interested in the worst level, which is maximum. It can be seen that Indigenous and Black inmates do have a higher proportion of inmates with maximum security scores, 5% points more on average than White inmates. Meanwhile, Indigenous and Black inmates have a significantly less amount of minimum security scores comparing to White and Other inmates, indicating it is also the case that Indigenous and Black inmates have more medium security scores. 
 
-```{r p1, fig.cap = "Security score distribution among race", echo = FALSE, message = FALSE, out.width="70%"}
+```{r p1, fig.cap = "Security score distribution among race", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold"}
 nset <- setDT(RAW)[,list(count = .N), by = .(RACE,`OFFENDER SECURITY LEVEL`)][,list(`OFFENDER SECURITY LEVEL` = `OFFENDER SECURITY LEVEL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
 #create percentage distribution of security score among races
 nset%>%
@@ -136,6 +158,7 @@ nset%>%
   coord_flip()+
   geom_text(aes(label = percent_fmt),
             position = position_fill(vjust = 0.5), 
+            #label the percentages
             size = 4,
             check_overlap = TRUE)+
   # turn on check overlap to avoid any overlap
@@ -144,11 +167,11 @@ nset%>%
   ylab(label = "Percentage")
 ```
 
-Figure \@ref(fig:p2) shows the distribution of reintegration potential score among race groups. The worst level of reintegration score is low, for having the worst potential of reintegrate to the society. Figure \@ref(fig:p2) suggest that Indigenous inmates have 15% point higher proportion of inmates with low reintegration scores than White inmates, and 15% points less with high reintegration score so that the distribution of medium score is similar to White inmates. In general, the distributions of reintegration score are similar between Black inmates and White inmates, suggesting we may not find any evidence that Black inmates are treated different than White inmates when assessing reintegration potential scores.
+Figure \@ref(fig:p2) shows the distribution of reintegration potential scores among race groups. The worst level of reintegration score is low, for having the worst potential of reintegrating into society. Figure \@ref(fig:p2) suggests that Indigenous inmates have a 15% points higher proportion of inmates with low reintegration scores than White inmates, and 15% points less with high reintegration scores so that the distribution of medium score is similar to White inmates. In general, the distributions of reintegration scores are similar between Black inmates and White inmates, suggesting we may not find any evidence that Black inmates are treated differently than White inmates when assessing reintegration potential scores.
 
 Note that these are just naive implication of potential racial discrimination when assessing offender security level, and does not represent anything causal before we regress the scores with race, and many other control variables to get closer to a causal link between the two.
 
-```{r p2, fig.cap = "Reintegration score distribution among race", echo = FALSE, message = FALSE, out.width="70%"}
+```{r p2, fig.cap = "Reintegration score distribution among race", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold"}
 nset2 <- setDT(RAW)[,list(count = .N), by = .(RACE,`REINTEGRATION POTENTIAL`)][,list(`REINTEGRATION POTENTIAL` = `REINTEGRATION POTENTIAL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
 #create percentage distribution of reintegration score among races
 nset2%>%
@@ -165,6 +188,7 @@ nset2%>%
   coord_flip()+
   geom_text(aes(label = percent_fmt),
             position = position_fill(vjust = 0.5), 
+            #label the percentages
             size = 4,
             check_overlap = TRUE)+
   # turn on check overlap to avoid any overlap
@@ -173,23 +197,23 @@ nset2%>%
   ylab(label = "Percentage")
 ```
 
-The article 'Bias Behind Bars'[@citebias] tested three models in total, two model assessing impact of race on probability of getting the worst offender security score and reintegration potential score, and one model assessing impact of reintegration score on probability of re-offending. Due to the time constraint of this report and ambiguity in the methodological instructions of the third model, we only replicated the first two models assessing the impact of race on the two assessment scores. For each model, we subset the CSC dataset into sub-datasets since the offender security score assessments are different from reintegration potential scores.
+The article 'Bias Behind Bars'[@citebias] tested three models in total, two models assessing the impact of race on the probability of getting the worst offender security score and reintegration potential score, and one model assessing the impact of reintegration score on probability of re-offending. Due to the time constraint of this report and ambiguity in the methodological instructions of the third model, we only replicated the first two models assessing the impact of race on the two assessment scores. For each model, we subset the CSC dataset into sub-datasets since the offender security score assessments are different from reintegration potential scores.
 
-The main issue with the instruction for the third model is how to subset the CSC data. The model should be using the re-offend indicator variable as the response, and using reintegration potential as the predictor along with other controls, and the model itself has no ambiguity. Our understanding of the subset for this model was to generate the re-offend indicator dummy variable for all entries based on if the offender appeared in the dataset for multiple times with unique sentence IDs. However, the article mentioned that, it should have 28110 total entries for this subset. Which makes the whole process ambiguous since there are a lot more than 28110 entries if we are to compare all inmates that re-offended and never re-offended. Since the results using the dataset generated with our understanding are far from the article's result [@citebias], we excluded the third model and it's results.
+The main issue with the instruction for the third model is how to subset the CSC data. The model should be using the re-offend indicator variable as the response and using reintegration potential as the predictor along with other controls, and the model itself has no ambiguity. Our understanding of the subset for this model was to generate the re-offend indicator dummy variable for all entries based on if the offender appeared in the dataset multiple times with unique sentence IDs. However, the article mentioned that it should have 28110 total entries for this subset. This makes the whole process ambiguous since there are a lot more than 28110 entries if we are to compare all inmates that re-offended and never re-offended. Since the results using the dataset generated with our understanding are far from the article's result [@citebias], we excluded the third model and its results.
 
 ## Offender Security level Model Subset
 
-As mentioned in the introduction, offender security level is one of the most important score effecting an inmate's life behind bars. It has a set of measure from minimum, medium, to maximum, and maximum bring the 'worst' score. The CSC officer uses an actuarial setting questionnaire called the Custody Rating Scales to measure the security level of an inmate when they first arrive to the designated institution. The questionnaire is focused on the severity of the main offence of current sentence, and any history of drug use or alcohol abuse. Although the security score can be override latter, but the inmate will be transferred to the institution suiting their security level. And maximum level is considered to be the worst score since an inmate with maximum security level will share facility in the same institution with other maximum level inmates, which are likely to be murders or committed other severe crime, and have lower degrees of personal freedom. Meanwhile the low security level inmates will be surrounded by inmates committing fraud or other non-violent crimes, and have more freedom relatively.
+As mentioned in the introduction, the offender security level is one of the most important scores affecting an inmate's life behind bars. It has a set of measures from minimum, medium, to maximum, and maximum bring the 'worst' score. The CSC officer uses an actuarial setting questionnaire called the Custody Rating Scales to measure the security level of an inmate when they first arrive at the designated institution. The questionnaire is focused on the severity of the main offense of the current sentence, and any history of drug use or alcohol abuse. Although the security score can be overridden later, the inmate will be transferred to the institution suiting their security level. And the maximum level is considered to be the worst score since an inmate with maximum security level will share a facility in the same institution with other maximum level inmates, which are likely to be murdered or committed other severe crimes and have lower degrees of personal freedom. Meanwhile, the low-security level inmates will be surrounded by inmates committing fraud or other non-violent crimes, and have more freedom relatively.
 
-Since the offender security level was set when they first arrive, and is not likely to be over-ride in most cases, the dataset for the security score model will only contain the first entry of each inmates with their unique offender ID. We do so by locating the entry of each inmates with the lowest age, and also filtering for inmates that were in custody at the time to eliminate the community service sentences. This is slightly different from the description in the methodology instructions, which was "the dataset looked only at inmates who'd just begun their sentence, since that's when they are assessed with the Custody Rating Scale" [@citemethod]. It is unsure if the article meant to filter for the entries when they just enter, or just filter for all new inmates at the beginning of 2018. 
+Since the offender security level was set when they first arrive and is not likely to be over-ride in most cases, the dataset for the security score model will only contain the first entry of each inmate with their unique offender ID. We do so by locating the entry of each inmate with the lowest age and also filtering for inmates that were in custody at the time to eliminate the community service sentences. This is slightly different from the description in the methodology instructions, which was "the dataset looked only at inmates who'd just begun their sentence since that's when they are assessed with the Custody Rating Scale" [@citemethod]. It is unsure if the article meant to filter for the entries when they just enter, or just filter for all new inmates at the beginning of 2018. 
 
-The response variable of the model is a dummy variable, generated as 1 if the inmate got maximum security level, and 0 otherwise. This generation is required by the logistic regression we introduce in *Section 3*. Lastly, we follow the article to have two sub-models for each score, one for females and one for males, and the sub-dataset will be divided by gender for it.
+The response variable of the model is a dummy variable, generated as 1 if the inmate got a maximum security level, and 0 otherwise. This generation is required by the logistic regression we introduce in *Section 3*. Lastly, we follow the article to have two sub-models for each score, one for females and one for males, and the sub-dataset will be divided by gender for it.
 
 The sub-dataset using our interpretation leaves 36285 entries, each representing a unique inmate, with 34252 male and 2033 female. While the article suggests a sub-dataset with 22922 entries, with 21439 males and 1483 females. We tried to filter for only new inmates with entries recorded in the fiscal years 2017-2018, but that only leaves 3155 unique entries. Thus, we proceed with the sub-dataset with 34352 entries for the offender security level models, specifically the male security level model and the female security level model.
 
-Instead of checking score distribution for male and female using a bar plot similar to Figure \@ref(fig:p1), we check it using a frequency table. Since the former form does not show count and percentage at the same time, and count does play an important role for smaller dataset like the female dataset. 
+Instead of checking score distribution for males and females using a bar plot similar to Figure \@ref(fig:p1), we check it using a frequency table. Since the former form does not show count and percentage at the same time, and the count does play an important role for a smaller dataset like the female dataset. 
 
-Table \@ref(tab:p1m) shows the distribution of security scores for males. The overall distribution is similar to the complete dataset, but it appears that, there are slightly more percentage of maximum security level inmates combined with a lot more percentage of medium security level inmates for both Black and Indigenous inmates. Resulting in approximately 10% points less Black and Indigenous inmates to have minimum security level. However, their gap between the White inmates in term of maximum security level percentage still holds in general.
+Table \@ref(tab:p1m) shows the distribution of security scores for males. The overall distribution is similar to the complete dataset, but it appears that there is a slightly more percentage of maximum security level inmates combined with a lot more percentage of medium security level inmates for both Black and Indigenous inmates. Resulting in approximately 10% points less Black and Indigenous inmates to have minimum security level. However, their gap between the White inmates in terms of maximum security level percentage still holds in general.
 
 ```{r model1 data, echo = FALSE, message = FALSE}
 ##this is the specific subset of data for model 1
@@ -221,14 +245,16 @@ nset3 <- setDT(data1m)[,list(count = .N), by = .(RACE,`OFFENDER SECURITY LEVEL`)
 ```{r p1m, echo = FALSE, message = FALSE}
 options(knitr.kable.NA = '')
 #use knitr to convert NAs into empty strings
+
+#create the frequency tables for security score based on race
 kable(nset3[,1:4],
       col.names = c("Race", "Offender Security Level", "Count", "Percentage"),
       align = "c", 
       caption = "Distribution of Security Score for Male")%>%
-  kable_styling(latex_options = c("HOLD_position","scale_down"))
+  kable_styling(latex_options = c("HOLD_position"), font_size = 7)
 ```
 
-Table \@ref(tab:p1f) shows the distribution of security scores for females. There are two major difference between the security score female distribution to the complete dataset distribution. Only 3.85% (6 individual) of inmates in Other race groups were assigned with maximum security level, this is significantly lower than the former 8.27%. And only 8% (12 individual) of Black inmates were assigned with maximum security level, again, significantly lower than the former 15.5%. These are the drawbacks of dividing the dataset by gender since the sample size of females in the CSC dataset are naturally less than males. In this case, there are only a total of 150 Black female inmates for the security score model, and it's distribution is not much similar even to the male sub-dataset. Thus, the female security score model can be expected to have different result than the male model, and it may not be statistically significant due to the relatively small sample size under Bayesian settings.
+Table \@ref(tab:p1f) shows the distribution of security scores for females. There is two major difference between the security score of female distribution to the complete dataset distribution. Only 3.85% (6 individuals) of inmates in Other race groups were assigned with a maximum security level, this is significantly lower than the former 8.27%. And only 8% (12 individuals) of Black inmates were assigned with a maximum security level, again, significantly lower than the former 15.5%. These are the drawbacks of dividing the dataset by gender since the sample size of females in the CSC dataset is naturally less than males. In this case, there are only a total of 150 Black female inmates for the security score model, and its distribution is not much similar even to the male sub-dataset. Thus, the female security score model can be expected to have a different result than the male model, and it may not be statistically significant due to the relatively small sample size under Bayesian settings.
 
 ```{r , echo = FALSE, message = FALSE}
 nset4 <- setDT(data1f)[,list(count = .N), by = .(RACE,`OFFENDER SECURITY LEVEL`)][,list(`OFFENDER SECURITY LEVEL` = `OFFENDER SECURITY LEVEL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
@@ -239,18 +265,19 @@ nset4 <- setDT(data1f)[,list(count = .N), by = .(RACE,`OFFENDER SECURITY LEVEL`)
 ```{r p1f, echo = FALSE, message = FALSE}
 options(knitr.kable.NA = '')
 #use knitr to convert NAs into empty strings
+#create the frequency tables for security score based on race
 kable(nset4[,1:4],
       col.names = c("Race", "Offender Security Level", "Count", "Percentage"),
       align = "c", 
       caption = "Distribution of Security Score for Female")%>%
-  kable_styling(latex_options = c("HOLD_position","scale_down"))
+  kable_styling(latex_options = c("HOLD_position"), font_size = 7)
 ```
 
 ## Reintegration Potential Model Subset
 
-The reintegration potential score is a measure of the inmate's potential ability to re-enter the society after sentence, and the likelihood of not re-offending. Leveling from low, medium, to high, and low is the worst reintegration score indicating a low likelihood of re-enter the society without re-offending. The importance of reintegration potential lie on the parole hearings, a higher reintegration potential helps to gain trust from the parole boards. This score is regularly assessed partially base on Static Factors Assessment, and the other parts depends on the inmate's gender and/or race group. If the inmate is Indigenous or female, the CSC would use the Dynamic Factors Identification and Analysis test, which is a measure of the inmate's life experiences. Otherwise, the CSC uses the Statistical Information on Recidivism scale, which is another measure predicting the likelihood of re-offend. The latter measure was never used on Indigenous or female inmates with intention to prevent cultural bias. Notice that both the Static Factors Assessment and the Dynamic Factors Identification assess the severity of past crime history and life experiences, which are based on the administering officer's subjective judgment and is where the potential issue lies.
+The reintegration potential score is a measure of the inmate's potential ability to re-enter society after sentence and the likelihood of not re-offending. Leveling from the low, medium, to high, and low is the worst reintegration score indicating a low likelihood of re-entering the society without re-offending. The importance of reintegration potential lies in the parole hearings, a higher reintegration potential helps to gain trust from the parole boards. This score is regularly assessed partially base on Static Factors Assessment, and the other parts depend on the inmate's gender and/or race group. If the inmate is Indigenous or female, the CSC would use the Dynamic Factors Identification and Analysis test, which is a measure of the inmate's life experiences. Otherwise, the CSC uses the Statistical Information on Recidivism scale, which is another measure predicting the likelihood of re-offend. The latter measure was never used on Indigenous or female inmates with the intention to prevent cultural bias. Notice that both the Static Factors Assessment and the Dynamic Factors Identification assess the severity of past criminal history and life experiences, which are based on the administering officer's subjective judgment and is where the potential issue lies.
 
-Since the reintegration potential scores are assessed each year throughout the sentence, the sub-dataset for reintegration score model will naturally contain more entries since we are allowing multiple entries for each inmate. Since we already eliminated replicated observations, the sub-dataset was defined by simply filtering for all inmates in custody to eliminate all community service status. The resultant dataset contains 91787 entries, 87909 males and 3878 females. Comparing to the article's size of 90524 entries, 86762 males and 3762 females, our dataset is closer to the desired size than previous attempts. Similar to the previous section, the response dummy variable was generated to be 1 for having low reintegration potential, and 0 otherwise. 
+Since the reintegration potential scores are assessed each year throughout the sentence, the sub-dataset for the reintegration score model will naturally contain more entries since we are allowing multiple entries for each inmate. Since we already eliminated replicated observations, the sub-dataset was defined by simply filtering for all inmates in custody to eliminate all community service status. The resultant dataset contains 91787 entries, 87909 males and 3878 females. Comparing to the article's size of 90524 entries, 86762 males and 3762 females, our dataset is closer to the desired size than previous attempts. Similar to the previous section, the response dummy variable was generated to be 1 for having low reintegration potential, and 0 otherwise. 
 
 ```{r model2 data, echo = FALSE, message = FALSE}
 #this is the specific subset of data for model 2
@@ -269,7 +296,7 @@ data2f <- data2%>%filter(GENDER == "FEMALE")
 #separate into male and female dataset
 ```
 
-Table \@ref(tab:p2m) shows the distribution of reintegration score among males in the model specific dataset. It appears that inmates with high reintegration scores dropped by approximately 10% points on average for all race groups, resulting an increase in the medium and low scores' share. This could be the result of keeping only inmates in custody which may have lower reintegration potential on average, and those excluded inmates in community status may have higher integration potential scores in general. 
+Table \@ref(tab:p2m) shows the distribution of reintegration scores among males in the model-specific dataset. It appears that inmates with high reintegration scores dropped by approximately 10% points on average for all race groups, increasing the medium and low scores' share. This could be the result of keeping only inmates in custody who may have lower reintegration potential on average, and those excluded inmates in community status may have higher integration potential scores in general. 
 
 ```{r , echo = FALSE, message = FALSE}
 nset5 <- setDT(data2m)[,list(count = .N), by = .(RACE,`REINTEGRATION POTENTIAL`)][,list(`REINTEGRATION POTENTIAL` = `REINTEGRATION POTENTIAL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
@@ -279,14 +306,15 @@ nset5 <- setDT(data2m)[,list(count = .N), by = .(RACE,`REINTEGRATION POTENTIAL`)
 ```{r p2m, echo = FALSE, message = FALSE}
 options(knitr.kable.NA = '')
 #use knitr to convert NAs into empty strings
+#create the frequency tables for reintegration score based on race
 kable(nset5[,1:4],
       col.names = c("Race", "Reintegration Potential", "Count", "Percentage"),
       align = "c", 
       caption = "Distribution of Reintegration Potential for Male")%>%
-  kable_styling(latex_options = c("HOLD_position","scale_down"))
+  kable_styling(latex_options = c("HOLD_position"), font_size = 7)
 ```
 
-Table \@ref(tab:p2f) shows the distribution of reintegration score among females in the same dataset. The same pattern of decreasing amount of high reintegration score inmates is observed for White, Indigenous, and Other race groups, but with varying magnitude. White inmates have a reduction of approximately 10% points, 4% points for Indigenous inmates, and 12% points for Other race inmates. However, for Black inmates, a 14% points increase in proportion of high reintegration potential inmates was observed. This could be due to the small sample size of Black female inmate entries, 261 entries among the 3878 entries. Smaller size led to higher variation within the Black female inmates, and thus unusual pattern from the other race groups, and from the Black male inmates.
+Table \@ref(tab:p2f) shows the distribution of reintegration scores among females in the same dataset. The same pattern of decreasing amount of high reintegration score inmates is observed for White, Indigenous, and Other race groups, but with varying magnitude. White inmates have a reduction of approximately 10% points, 4% points for Indigenous inmates, and 12% points for Other race inmates. However, for Black inmates, a 14% points increase in the proportion of high reintegration potential inmates was observed. This could be due to the small sample size of Black female inmate entries, 261 entries among the 3878 entries. Smaller size led to higher variation within the Black female inmates, and thus unusual pattern from the other race groups, and the Black male inmates.
 
 ```{r , echo = FALSE, message = FALSE}
 nset6 <- setDT(data2f)[,list(count = .N), by = .(RACE,`REINTEGRATION POTENTIAL`)][,list(`REINTEGRATION POTENTIAL` = `REINTEGRATION POTENTIAL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
@@ -296,41 +324,53 @@ nset6 <- setDT(data2f)[,list(count = .N), by = .(RACE,`REINTEGRATION POTENTIAL`)
 ```{r p2f, echo = FALSE, message = FALSE}
 options(knitr.kable.NA = '')
 #use knitr to convert NAs into empty strings
+#create the frequency tables for reintegration score based on race
 kable(nset6[,1:4],
       col.names = c("Race", "Reintegration Potential", "Count", "Percentage"),
       align = "c", 
       caption = "Distribution of Reintegration Potential for Female")%>%
-  kable_styling(latex_options = c("HOLD_position","scale_down"))
+  kable_styling(latex_options = c("HOLD_position"), font_size = 7)
 ```
 
 # Model
 
-The models for both scores shares the general form of a binary logistic regression model fitted under Bayesian settings. Binary logistic regression assess the logit probability of an event to occur, in other words, the log likelihood of the dummy response variable to equal to 1. Due to the mathematical property of logistic functions which range from 0 to 1 in the response variables, logistic regression is the natural choice to consider when dealing with binary (dummy) response variables for preventing extrapolation in the predicted response values. As mentioned in the previous sections, we created the dummy response variables to assess the log likelihood of getting the worst offender security score and reintegration potential score using race groups as the main explanatory variable, and including the individual characteristics and other measures from the CSC as control variables. 
+The models for both scores share the general form of a binary logistic regression model fitted under Bayesian settings. Binary logistic regression assesses the logit probability of an event to occur, in other words, the log-likelihood of the dummy response variable to equal to 1. Due to the mathematical property of logistic functions which range from 0 to 1 in the response variables, logistic regression is the natural choice to consider when dealing with binary (dummy) response variables for preventing extrapolation in the predicted response values. As mentioned in the previous sections, we created the dummy response variables to assess the log-likelihood of getting the worst offender security score and reintegration potential score using race groups as the main explanatory variable, and including the individual characteristics and other measures from the CSC as control variables. 
 
 The regression models are fitted in `R` [@citeR] using the `brms` package [@citebrms] and `tidybayes` package [@citetidybayes]. The `brms` package is designed for Bayesian regression models, essentially brings the merit of `Stan` using simple `R` syntax and through similar algorithms like Markov chain Monte Carlo (MCMC). MCMC chains allow the model to develop the parameter gradually, and `brms` uses its variant form which is the No-U-Turn Sampler (NUTS) to adapt the samples for posterior distributions, the default 4 chains and 1000 iteration (not including warm-up) were used to fit the model with the help of `brm` function in `brms`. 
 
-The main difference between our Bayesian setting and the article's [@citebias] Frequentist setting is on the interpretation of coefficients, in other words, how we treat the estimates of the effects of being in different race groups. The Frequentist setting interpret the effects as an unknown constant, which is waiting to be estimated by the logistic regression resultant coefficients. The Bayesian setting interpret the effects as random variables, and we estimate the distribution of that random variable using Bayesian logistic regressions. In the Bayesian setting, we can set prior belief about the distribution of those random variables which directly effects the estimated distribution (posterior). In this report, we use the default priors of `brms`, which are t distributions gathered automatically by `brms`, since we do not have much prior belief about the distribution of those effects. The equation for the two models are essentially the same since they include the same explanatory variable and control variables. 
+The main difference between our Bayesian setting and the article's [@citebias] Frequentist setting is on the interpretation of parameters, in other words, how we treat the results assessing the effects of being indifferent race groups. The Frequentist setting interprets the parameters as an unknown constant, which is waiting to be estimated by the logistic regression resultant coefficients. The Bayesian setting interprets the parameters as random variables, and we estimate the distribution of that random variable using Bayesian logistic regressions. In the Bayesian setting, we can set prior belief about the distribution of those random variables which directly affects the estimated distribution (posterior). In this report, we use the default priors of `brms`, which are t distributions gathered automatically by `brms`, because there is not have much prior belief about the distribution of those effects. The equation for the two models is essentially the same except for the response variables since they include the same explanatory variable and control variables.
 
-\begin{equation}
-Pr(MaxSecurity_{i,t}=1) = logit^{-1}(\beta_{0 }+ \beta_{1}Black_{i,t}+ \beta_{2}Indigenous_{i,t} + \beta_{3}Other_{i,t} + \delta_{1}Age_{i,t} +\sum^{}_{}\alpha_{j}Static_{i,t} + \sum^{}_{}\epsilon_{k} Year_{i,t} + \delta_{2}SentenceType_{i,t}) (\#eq:bayes1)
-\end{equation}
+$$
+\begin{aligned}
+Pr(MaxSecurity_{i,t}=1) = logit^{-1}(\beta_{0 }+ \beta_{1}Black_{i,t}+ \beta_{2}Indigenous_{i,t} + \beta_{3}Other_{i,t} + \\ 
+\delta_{1}Age_{i,t} +\sum^{}_{}\alpha_{j}Static_{i,t} + \sum^{}_{}\epsilon_{k} Year_{i,t} + \delta_{2}SentenceType_{i,t})
+\end{aligned}
+$$
 
-\begin{equation}
-Pr(LowReint_{i,t}=1) = logit^{-1}(\beta_{0 }+ \beta_{1}Black_{i,t}+ \beta_{2}Indigenous_{i,t} + \beta_{3}Other_{i,t} + \delta_{1}Age_{i,t} +\sum^{}_{}\alpha_{j}Static_{i,t} + \sum^{}_{}\epsilon_{k} Year_{i,t} + \delta_{2}SentenceType_{i,t}) (\#eq:bayes2)
-\end{equation}
+$$
+\begin{aligned}
+Pr(LowReint_{i,t}=1) = logit^{-1}(\beta_{0 }+ \beta_{1}Black_{i,t}+ \beta_{2}Indigenous_{i,t} + \beta_{3}Other_{i,t} + \\ 
+\delta_{1}Age_{i,t} +\sum^{}_{}\alpha_{j}Static_{i,t} + \sum^{}_{}\epsilon_{k} Year_{i,t} + \delta_{2}SentenceType_{i,t})
+\end{aligned}
+$$
 
-Equation \@ref(eq:bayes1) and equation \@ref(eq:bayes2) displays the equations for the two binary logistic regression models. However, remember that each model will be fitted twice, one time for male inmates only and one time for female inmates only, each based on the corresponding sub-dataset discussed in *Section 2*. Race is the main explanatory variable we are interested in, since we are trying to replicate the results of 'Bias Behind Bars' [@citebias]. Three dummy variables were set up so that they equal to 1 if the inmate is Indigenous, Black, or Other race respectively, and if one of these dummy equals to 1, the other two equals to 0 automatically. White is manually set as the reference group, meaning it's effect is integrated into the intercept ($\beta_{0}$). Due to this dummy variable coding format, the interpretation of the $\beta_{1,2,3}$ is the average percent difference in the likelihood of getting the worst scores for being Indigenous, Black, or Other race alone, holding all other control variables constant.
+The equations for the two binary logistic regression models are displayed as above. The response variables are dummy variables discussed in *Section 2*, which are equal to 1 if the inmate got the worst level of scores, maximum for security level, and low for reintegration potential. Remember that each model will be fitted twice, one time for male inmates only and one time for female inmates only, each based on the corresponding sub-dataset discussed in *Section 2*. The race is the main explanatory variable we are interested in since we are trying to replicate the results of 'Bias Behind Bars' [@citebias]. Three dummy variables were set up so that they equal to 1 if the inmate is Indigenous, Black, or Other race respectively, and if one of these dummies equals to 1, the other two equals 0 automatically. White is manually set as the reference group, meaning it's effect is implicitly integrated into the intercept ($\beta_{0}$) to avoid multicollinearity with the other three dummies. Due to this dummy variable coding format, the interpretation of the $\beta_{1,2,3}$ is the average percent difference in the likelihood of getting the worst scores for being Indigenous, Black, or Other race alone, holding all other control variables constant.
 
-Beside the race groups being the main interest the article and of this report, these choices of control variables are based on the methodology instructions [@citemethod], but with exclusion of the variable representing weight of the most severe offence of an inmate. As mentioned in the previous sections, the control variables include age, static score, year, and sentence type. Age is a numeric variable, and interpretation of $\delta_{1}$ is the average increase in likelihood of getting the worst scores for each additional increase in age, holding all other explanatory variables constant. Static score is a categorical variable, as discussed in *Section 2*, it levels from low, medium, to high. The `brms` automatically create dummy variables for categorical variables in a similar format as we did for race groups. However, we did not manually set a specific reference groups so `brms` will pick the reference group automatically, which may be different across models. The $\alpha_{j}$s are the two coefficients for the two non-reference dummy variables, with interpretation similar to the $\beta$s.
+Besides the race groups being the main interest of the article and of this report, these choices of control variables are based on the methodology instructions [@citemethod], but with the exclusion of the variable representing the weight of the most severe offense of an inmate. As mentioned in the previous sections, the control variables include age, static score, year, and sentence type. Age is a discrete numeric variable, and interpretation of $\delta_{1}$ is the average increase in the likelihood of getting the worst scores for each additional increase in age, holding all other explanatory variables constant. We did not modify ages into age groups because it is not explicitly mentioned in the methodology instructions, and should not cause much difference in the estimates for the effect of race dummies. The static score is a categorical variable, as discussed in *Section 2*, it levels from the low, medium, to high. The `brms` automatically create dummy variables for categorical variables in a similar format as we did for race groups. However, we did not manually set a specific reference group so `brms` will pick the reference group automatically, which may be different across models. So we wrote all other categorical variables in summation formats along with their corresponding effect parameters. The $\alpha_{j}$s are the two coefficients for the two non-reference dummy variables, with interpretation similar to the $\beta$s.
 
-Year is also a categorical variable representing the fiscal year of the entry, by automatically creating the dummy variables, adding year is essentially adding year fixed effects into the model. However, the article did not add individual fixed effects and the possible individual specific time trends which are some useful controls to look into. The reason was not discussed in the article and the methodology instructions, thus, we did not add the individual fixed effects for replication purpose. The $\epsilon_{k}$s are the six coefficients for the six non-reference dummy variables, with interpretation similar to the $\beta$s. Sentence type is a categorical variable with only two levels, determinate or indeterminate), so `brms` will only create one dummy for it. Thus, $\delta_{2}$ is interpreted as the average difference in likelihood of getting the worst score between the reference and non-reference sentence types, holding all other explanatory variables constant. 
+The year is also a categorical variable representing the fiscal year of the entry, by automatically creating the dummy variables, adding year is essentially adding year fixed effects into the model. Adding time fixed effects into the model allows to control for any variation that varies across years only, but constant across individual/provinces. Again, remember it should have six dummy variables in the summation for the total of seven fiscal years in the CSC dataset. However, the article did not add individual fixed effects and the possible individual specific time trends which are some useful controls to look into. Individual/province fixed effects have a similar interpretation as time fixed effects, it controls for variation across individuals/provinces that's constant across years. 
 
-Figure \@ref(fig:trace) in the appendix displays the trace plots of the parameters during the MCMC chains of all four fitted models, these plots were created in `R` [@citer] using functions in `brms` [@citebrms] package. An ideal trace plot would be in a consistent and rapid up-and-down shape with no long term trend. All of the trace plots appear to satisfy that requirement, and there is no divergent transitions during the MCMC chains which would be indicated in red by `brms` if any. These findings show evidence that our fitted model is not fractured, and the reliability of these fitted models are assessed in the next section, *Section 4*.
+The reason why no individual/province terms were not discussed in the article and the methodology instructions, thus, we did not add the individual fixed effects for replication purposes. It could be the case that no evidence or arguments are supporting that individuals/provinces are different from each other from 2012 to 2018. The $\epsilon_{k}$s are the six coefficients for the six non-reference dummy variables, with interpretation similar to the $\beta$s. For future improvements of the model, adding individual fixed effects and individual-specific year trends should help stabilize the estimated effects in general. The addition of individual fixed effects or even province fixed effects, since province data is recorded in the CSC dataset, should be assessed carefully for any evidence of over-fitting. There are more than 35000 unique inmates across seven years, and the amount of individual dummies to add is significant, which could potentially fracture the posterior distributions of the estimates. In that case, controlling for states is a better choice if there is reason to believe CSC administrative officers are different across provinces, and across years at the same time if one considers adding interaction terms. 
+
+Sentence type is a categorical variable with only two levels, determinate or indeterminate, so `brms` will only create one dummy for it. Thus, $\delta_{2}$ is interpreted as the average difference in the likelihood of getting the worst score between the reference and non-reference sentence types, holding all other explanatory variables constant. 
+
+Figure \@ref(fig:trace1), figure \@ref(fig:trace2), figure \@ref(fig:trace3), and figure \@ref(fig:trace4) in the appendix displays the trace plots of the parameters during the MCMC chains of all four fitted models, these plots were created in `R` [@citer] using functions in `brms` [@citebrms] package. An ideal trace plot would be in a consistent and rapid up-and-down shape with no long term trend. All of the trace plots appear to satisfy that requirement, and there are no divergent transitions during the MCMC chains which would be indicated in red by `brms` if any. These findings show evidence that our fitted model is not fractured, and the reliability of these fitted models is assessed in the next section, *Section 4*.
 
 ```{r model1, echo = FALSE, message = FALSE}
 model1m <- brm(MAXSEC ~ relevel(factor(RACE), ref = "White") + AGE + static + fiscalyear + sentencetype, 
             data = data1m, 
             family = bernoulli(),
+            #appoint for binary logistic regression 
             seed = 6431,
             #seed not perfect in brm, but better than nothing
             silent = TRUE,
@@ -368,39 +408,191 @@ model2f <- brm(LOWINT ~ relevel(factor(RACE), ref = "White") + AGE + static + fi
             refresh = 0,
             #the above option turns off all message completely wen knitting
             file = "/Users/jordans2000/Desktop/STA304/Replicate-Bias-Behind-Bars/outputs/model/model2f")
-
 ```
 
 
 # Results
 
+The displayed regression results focus on the three main race effects, which is the focus of this report. White inmates are set as the reference group, so its effect is integrated into the intercepts. For each mean estimate of the race effects, the estimated standard error and 95% credible intervals are shown below them. Standard errors measures how 'spread' the distribution of the estimates is around the mean estimate. A lower standard error indicates more concise the distribution is around the mean. The interpretation of the 95% credible intervals is different from the well-known confidence intervals, which can be interpreted as if we keep taking samples and fitting the model then the true value of the parameter lies in the confidence interval 95% of the time. Credible intervals are Bayesian measures, and it can be interpreted as there's a 95% probability that the magnitude of the race effects lie within the interval. 
+
+The main difference between the confidence interval and credible interval is that the bounds of confidence intervals are considered to be random, while the bounds of credible intervals are considered as fixed constants. Notice that this is the difference in the reverse of interpretation of parameters between Frequentist and Bayesian settings. If the 95% credible interval contains zero, then the magnitude of the estimated effect is not statistically significant from zero. Otherwise, the estimated effect would be statistically significant from zero at the 5% significance level, meaning the chance of getting the estimated value is less than 5% if the true distribution of the effect does have zero mean.
+
+The corresponding Receiver Operating Characteristic (ROC) curves for each model are also displayed to replicate all results mentioned in the methodology instruction [@citemethod]. The ROC curves were produced using the `pROC` package [@citepROC] in `R` [@citer]. The ROC curve plots the False Positive Percentage (FPP) and True Positive Percentage (TPP) when using the model to predict back on the sub-dataset for the binary response of getting the worst assessment scores. When making predictions, each point on the ROC represents a threshold value of treating the prediction as 1 or 0. For example, if the threshold is 0.5 when the fitted model uses an entry to predict the response variable and got a prediction of 0.6, it will be treated as 1. The True Positive Rate/Percentage (TPP) is the rate of successfully predicting the response variable, and the False Positive Rate/Percentage (FPP) is the rate of falsely predicting the response variable. The ROC plots these two rates for every possible threshold of identifying the binary response, and an ideal ROC should be as close to the upper left corner as possible for the highest TPP and the lowest FPP. 
+
+The Area Under the Curve (AUC) is a numeric measure of the ROC curves, and it can be used as a measure to compare two logistic regression models to find the model with better prediction power. As the name of AUC says, it measures the area under the ROC curve in percentage, 50% means the model is randomly guessing between the binary outcomes, indicating the model has no predictive power. In general, the higher the AUC, the better the model is at predicting the binary response variable. An AUC larger than 70% indicates the model has a solid prediction power, and AUC larger than 90% indicates it is a very good model, but an AUC close to 99.99% will indicate over-fitting since it is unrealistic in most cases.
+
 ## Security Socre Model
 
-```{r}
+\begin{center}
+$Table\,6:\,Security\,\,Level\,\,Model\,\,Results$
+\end{center}
+||Male||Female|
+|------:|:-----|---------|:------:|
+|Black|0.21||0.23|
+||(0.06)||(0.37)|
+||(0.09, 0.33)||(-0.50, 0.93)|
+|Indigenous|-0.05||0.15|
+||(0.04)||(0.18)|
+||(-0.14, 0.04)||(-0.21, 0.51)|
+|Other|-0.07||-0.74|
+||(0.07)||(0.49)|
+||(-0.21, 0.07)||(-1.76, 0.15)|
 
+
+Table 6 displays the results of the logistic regression model on the likelihood of being assigned with the maximum offender security level. For the male model, the estimate suggests that Black male inmates are 21% more likely to get maximum security level than White male inmates holding all other controls constant. This result is statistically significant from zero since the corresponding 95% credible interval does not contain zero. Comparing to the article's [@citebias] estimate of 23.8% which is also statistically significant, our result is slightly lower. Same as the article results, we find no statistically significant effect for male Indigenous inmates to be different from White inmates, nor is the magnitude of this effect itself significant. Notice that the model suggests that male inmates with Other race groups are also indifferent to White inmates when assessing security levels. However, as mentioned in the article, it does not mean there is no effect just because our model not detecting an effect on Indigenous inmates. The only conclusion that can be drawn on the non-significant results is that our model does not provide evidence to support that there is an effect.
+
+Notice that the female security level model disagrees with the article results, all estimates in the female model are not statistically significant for containing zero in the 95% credible intervals. The article results suggest there is a significant effect for Indigenous female inmates, but not for Black female inmates. This disagreement could be a result of having a large standard error in the female model, which makes it harder for the identification of the effect since the posterior distribution is more spread. 
+
+Figure \@ref(fig:roc1) and figure \@ref(fig:roc2) display the ROC curves for the male and female security level models, both showing an AUC larger than 70% meaning both are models with good prediction powers. However, unlike the article suggesting the male model have a higher AUC than the female model, the current female model is showing a small amount of extra prediction power compare to the male model. Given that none of the race effects in the female model are statistically significant, this implies that the control variables play a more important role in security level assessments for females than for males. Both ROC curves indicate that an optimal choice of threshold would result in a TPP around 80% with FPP around 25%, which is generally considered as a good amount of trade-off between TPP and FPP.
+
+```{r roc1, fig.cap = "ROC Male Security Level Model", echo = FALSE, message = FALSE, out.width="70%"}
+Pred1 <- predict(model1m, newdata = data1m)
+Pred1 <- data.frame(Pred1)
+#create prediction dataset
+
+par(pty = "s")
+#making the graph square
+roc1 <- roc(data1m$MAXSEC, Pred1$Estimate, 
+            #plotting the actual vs. predicted response percentages
+            plot = TRUE, 
+            legacy.axes=TRUE,
+            xlab="False Positive Percentage", 
+            ylab="True Postive Percentage",
+            lwd = 2,
+            print.auc = TRUE,
+            percent = TRUE)
 ```
 
+```{r roc2, fig.cap = "ROC Female Security Level Model", echo = FALSE, message = FALSE, out.width="70%"}
+Pred2 <- predict(model1f, newdata = data1f)
+Pred2 <- data.frame(Pred2)
+#create prediction dataset
+
+par(pty = "s")
+#making the graph square
+roc2 <- roc(data1f$MAXSEC, Pred2$Estimate,
+            #plotting the actual vs. predicted response percentages
+            plot = TRUE, 
+            legacy.axes=TRUE,
+            xlab="False Positive Percentage", 
+            ylab="True Postive Percentage",
+            lwd = 2,
+            print.auc = TRUE,
+            percent = TRUE)
+```
 
 ## Reintegration Score Model
 
-```{r}
+\begin{center}
+$Table\,7:\,Reintegration\,\,Potential\,\,Model\,\,Results$
+\end{center}
+||Male||Female|
+|------:|:-----|---------|:------:|
+|Black|-0.10||-0.34|
+||(0.03)||(0.22)|
+||(-0.15, -0.04)||(-0.79, 0.09)|
+|Indigenous|0.45||-0.02|
+||(0.02)||(0.10)|
+||(0.41, 0.49)||(-0.21, 0.17)|
+|Other|-0.59||0.09|
+||(0.03)||(0.21)|
+||(-0.66, -0.53)||(-0.33, 0.50)|
 
+Table 7 shows the results of the logistic regression model on the likelihood of being assigned with the low reintegration potential score. For the male model, the estimate suggests that Indigenous male inmates are 45% more likely to get low reintegration potential score than White male inmates holding all other controls constant. This result is highly statistically significant from zero since the estimated standard error is as low as 0.02, resulting in a 95% credible interval from 0.41 to 0.49. Our estimate is significantly higher than the article suggested 29.5% for Indigenous male inmates. The Black male inmates are actually 10% less likely to get a low reintegration potential score than White male inmates holding all other controls constant, this is also statistically significant. This is larger in magnitude than the suggested 6.1% in the article. Notice that inmates in other races are 59% less likely to get low reintegration potential score than White male inmates holding all other controls constant, and is also statistically significant from zero. This suggests that the CSC officers might be in favor of those minority groups when assessing their reintegration potential.
+
+Similar to the female model for offender security level, the resultant race effects from the female reintegration potential model are all not statistically significant from zero. Since the article did not discuss the results from the female reintegration potential model, it is assumed that the article did not get any statistically significant results for the female race effects.
+
+Figure \@ref(fig:roc3) and figure \@ref(fig:roc4) display the ROC curves for the male and female reintegration potential models, both showing an AUC around 80% meaning both models have very good prediction power. Unlike the article suggesting the male model have a higher AUC than the female model, the two models for reintegration potential have similar AUC. The male model ROC curve indicates an optimal choice of threshold would result in a TPP around 90% with FPP around 30%. Meanwhile, the female model ROC curve indicates an optimal choice of threshold would result in a TPP around 80% with FPP around 20%. Given that they have similar AUC, this demonstrates the trade-off between TPP and FPP: higher TPP would result in higher FPP. As a metric measure of ROC curves, the AUC is similar for the two ROC curves since their optimal trade-off ratio is similar.
+
+```{r roc3, fig.cap = "ROC Male Reintegration Model", echo = FALSE, message = FALSE, out.width="70%"}
+Pred3 <- predict(model2m, newdata = data2m)
+Pred3 <- data.frame(Pred3)
+#create prediction dataset
+
+par(pty = "s")
+#making the graph square
+roc3 <- roc(data2m$LOWINT, Pred3$Estimate, 
+            #plotting the actual vs. predicted response percentages
+            plot = TRUE, 
+            legacy.axes=TRUE,
+            xlab="False Positive Percentage", 
+            ylab="True Postive Percentage",
+            lwd = 2,
+            print.auc = TRUE,
+            percent = TRUE)
 ```
 
+```{r roc4, fig.cap = "ROC Female Reintegration Model", echo = FALSE, message = FALSE, out.width="70%"}
+Pred4 <- predict(model2f, newdata = data2f)
+Pred4 <- data.frame(Pred4)
+#create prediction dataset
+
+par(pty = "s")
+#making the graph square
+roc4 <- roc(data2f$LOWINT, Pred4$Estimate, 
+            #plotting the actual vs. predicted response percentages
+            plot = TRUE, 
+            legacy.axes=TRUE,
+            xlab="False Positive Percentage", 
+            ylab="True Postive Percentage",
+            lwd = 2,
+            print.auc = TRUE,
+            percent = TRUE)
+```
 
 # Discussion and Conclusion
+
+Although the magnitudes are slightly different from the suggested results in "Bias Behind Bars" and "How we did it" (the methodology instruction), our Bayesian logistic regression models on male inmates indicate the same overall results in terms of both statistical significance and direction of the effects. This proves the robustness of those effects by achieving highly analogical results even when we used potentially different assumptions in the data manipulation steps and under different statistical model assumptions.
+
+For offender security score assessments, the model suggests that Black inmates were more likely to be assigned with the worst security score and get sent to maximum security facilities or institutions after controlling for all kinds of background variables. The reason behind this may not be necessarily caused by the subjectivity of CSC officers against Black inmates, but a result of social stigma against the Black population in North America in the past century. The CSC officers may decide to exaggerate the potential threat of Black offenders based on their impressions and past experiences. 
+
+A research that was done a decade ago, [@citename], showed that employers are more likely to give interview and hire chances to White sounding names rather than Black sounding names in North America, which reflects that the underlying social stigma or race discrimination does exist. Nonetheless, CSC officers were trained against all kinds of racial discrimination, and the suggested results of the male security score model could be seen as an indication that CSC officers are relying too much on past experiences when assessing security levels. This is not saying that they have seen significantly more Black felons, inmates with very severe offenses, than White felons, but to say that CSC officers tend to remember more cases of Black felons because of the underlying social bias against Black inmates. 
+
+On the other hand, the male reintegration potential model indicates that Indigenous inmates were treated unfairly during reintegration potential assessments comparing to White inmates, and are more likely to get assigned with low reintegration potential. This could be a result of the special assessment scheme when the inmate is Indigenous or female. The CSC would use the Dynamic Factors Identification and Analysis test when assessing the reintegration potential of Indigenous or female inmates. The overall non-significant results from the female model with high prediction power implies this possibility from the other side, there might be no racial difference in reintegration potential assessments if all inmates used the same set of measurements. However, this possible explanation cannot be proven without more details on the difference between the Dynamic Factors Identification and Analysis test and the usual procedure for other inmates, which was not discussed in detail in the article and the methodology instructions.
+
+These results follow from the results in "Bias Behind Bars", suggesting that CSC do need to adjust their assessment systems to compensate for the human factor, and potentially adjust the administrative officer training. One viable adjustment could be employing officers with the same race group as the inmate to be assessed, which theoretically eliminates any social bias against certain racial groups. Any improvement in CSC assessments needs time to be verified against racial discrimination and even take another 7 years to gather enough data. With the "Bias Behind Bars" making a huge impact in the world of the criminal justice system, attempts to improve the assessment system by the CSC can be foreseen in the near future.
+
+## Potential Problems for Exluding the Most Severe Offence Variable
+
+In *Section 2*, the article's control variable representing the most severe offense of an inmate was dropped from this report for its heavy workload given our time constraints when the necessary information was finally obtained.  Although the model results indicate it does not lead to a severe consequence against the article results and the static scores essentially control for inmate's past offense history, there exist potential problems for not controlling the most severe offense of an inmate. 
+
+The most severe offense can be seen as another way of controlling for individual fixed effects by treating the inmates with the same degree of severity together. If this was the intention of Tom, the author of "Bias Behind Bars", then our model should control for the offender IDs or province for fixed effects. The most severe offense should also further stabilize the model results, potentially driving the magnitude of model estimates closer to article estimates even under Bayesian settings. 
+
+However, even if the process of hand matching over 700 offense types was done, it is expected to be different from what Tom's hand matched since the detailed offense types require some subjective judgment with hand matching. Tom mentioned in the reply to the email requesting for the CSI weights that, using Neuro-linguistic programming (NLP) could potentially sort the CSC offense types to the CSI weights in a less manual way. But that would be out of our ability and awaits future attempts to practice. 
+
+## Next Steps
+
+Besides the potential problems with excluding the most severe crime variable, the main constraint of the current models is that there are no statistically significant results for any race effects in both female score models. The general procedure of increasing an estimated effects' statistical significance is to reduce its estimated standard error for a more concise posterior distribution, thus reducing the chance that the 95% credible interval contains 0. The current estimated standard errors are equal or larger than the mean estimates in magnitude, for example, the mean estimate for the effect of being Black is 0.15, but the estimated standard error is 0.18.
+
+A common measure of reducing estimated standard error for effects is to increase the size of the dataset to be fitted, as demonstrated by the male models with significantly larger dataset size and significantly smaller standard errors for the effects. This is not valid unless the CSC give consent to a larger subset of their database because the current observational dataset size is fixed for both male and females. Note that, the dataset size needs to increase by 4 times the current size to reduce the standard error by 2 times. In general, asking for the CSC to release a couple of decades of entries from their database is not realistic because of the bureaucratic procedures. 
+
+Other options include increasing the amount of variation in the explanatory variables and reducing measurement errors. Unfortunately, both options are not applicable, there is no control on the variable of race groups among the female inmates since the dataset is given by the CSC and is fixed for change without a solid and reasonable argument, and the measurement errors are random in general since the race of an inmate is self-reported. However, if the inmates believe in report themselves as the minority race groups would be in favor of security level and reintegration potential assessments, fixing race groups to what was reported in the first entry for every inmate could effectively reduce measurement error. On the other hand, this action may result in a decrease in variation of race groups within the female sub-dataset so the trade-off between the two results in an unknown effect on estimated standard errors.
+
+It is also unfortunate that the third logistic regression model assessing the likelihood for an inmate to re-offend base on reintegration potential was dropped because of the ambiguous instructions for the corresponding dataset.  We encourage future attempts to get in touch with Tom Cardoso, the author of "Bias Behind Bars", for more details on that specific sub-dataset. Including the third model would help demonstrate the social bias against the Black and/or Indigenous population is not true, the article results suggest that given the assignment of low reintegration potential, White inmates are more likely to re-offend than Black and Indigenous inmates. A proof of the robustness of this result could help to remove the social bias furthermore.
+
 
 \newpage
 
 # Appendix {-}
 
-```{r trace, fig.cap = "Trace plots of all model", echo = FALSE, message = FALSE, out.width="50%"}
+```{r trace1, fig.cap = "Trace plots for male security level model", echo = FALSE, message = FALSE, out.width="80%"}
 mcmc_plot(model1m, type = "trace")
+#no divergence during the chains 
+```
+
+```{r trace2, fig.cap = "Trace plots for female security level model", echo = FALSE, message = FALSE, out.width="80%"}
 
 mcmc_plot(model1f, type = "trace")
+#no divergence during the chains in all models
+```
 
+```{r trace3, fig.cap = "Trace plots for male reintegration potential model", echo = FALSE, message = FALSE, out.width="80%"}
 mcmc_plot(model2m, type = "trace")
 
+#no divergence during the chains in all models
+```
+
+```{r trace4, fig.cap = "Trace plots for female reintegration potential model", echo = FALSE, message = FALSE, out.width="80%"}
 mcmc_plot(model2f, type = "trace")
 #no divergence during the chains in all models
 ```
