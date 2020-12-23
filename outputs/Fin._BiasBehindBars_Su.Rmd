@@ -109,7 +109,7 @@ Although not explicitly mentioned in the article, we recognized a significant am
 
 Figure \@ref(fig:piechart) shows the distribution of race groups among the 20358 entries each representing a unique inmate in early 2016 ('early' since it's collected at end of 15-16 fiscal year). Indigenous inmates account for 23.67% of inmates in our data, this is slightly less than the article's composition of 25.5% Indigenous inmates in early 2016. The Black inmate proportion of 7.94% is slightly less than the article result of 8.7%, and the percentage of inmates other than Black, White, and Indigenous is 8.66%, which is lower than the article result of 10.1%. These deviations suggest that either our approach classifies too many inmates as White, or something went different during the data cleaning steps. It is more likely to be the latter case since the White inmates remain untouched throughout the race classifications. These differences are expected since the deviation from article results will cumulate throughout the procedure by assuming the specific steps taken to get the article results. By over-classifying more inmates as White, and less in all other race groups, we expect our model estimates to be different, but the significance of the effects should be similar overall.
 
-```{r piechart, fig.cap = "Distribution of race in 2016", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold"}
+```{r piechart, fig.cap = "Distribution of race in 2016", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold", fig.align = 'center'}
 rawrep <- RAW%>%filter(`FISCAL YEAR` == "YE1516")
 #filtering for entries in early 2016
 
@@ -141,7 +141,7 @@ pie
 
 Before introducing the model-specific sub-datasets, it is important to check for any empirical results that might suggest any difference between race groups. Figure \@ref(fig:p1) shows the distribution of offender security scores/levels among the four race groups. In the case of offender security scores, we are interested in the worst level, which is maximum. It can be seen that Indigenous and Black inmates do have a higher proportion of inmates with maximum security scores, 5% points more on average than White inmates. Meanwhile, Indigenous and Black inmates have a significantly less amount of minimum security scores comparing to White and Other inmates, indicating it is also the case that Indigenous and Black inmates have more medium security scores. 
 
-```{r p1, fig.cap = "Security score distribution among race", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold"}
+```{r p1, fig.cap = "Security score distribution among race", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold", fig.align = 'center'}
 nset <- setDT(RAW)[,list(count = .N), by = .(RACE,`OFFENDER SECURITY LEVEL`)][,list(`OFFENDER SECURITY LEVEL` = `OFFENDER SECURITY LEVEL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
 #create percentage distribution of security score among races
 nset%>%
@@ -171,7 +171,7 @@ Figure \@ref(fig:p2) shows the distribution of reintegration potential scores am
 
 Note that these are just naive implication of potential racial discrimination when assessing offender security level, and does not represent anything causal before we regress the scores with race, and many other control variables to get closer to a causal link between the two.
 
-```{r p2, fig.cap = "Reintegration score distribution among race", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold"}
+```{r p2, fig.cap = "Reintegration score distribution among race", echo = FALSE, message = FALSE, out.width="60%", fig.show="hold", fig.align = 'center'}
 nset2 <- setDT(RAW)[,list(count = .N), by = .(RACE,`REINTEGRATION POTENTIAL`)][,list(`REINTEGRATION POTENTIAL` = `REINTEGRATION POTENTIAL`, count = count, percent_fmt = paste0(formatC(count*100/sum(count), digits = 3), "%"),percent_num = count/sum(count)), by = RACE]
 #create percentage distribution of reintegration score among races
 nset2%>%
@@ -445,7 +445,7 @@ Notice that the female security level model disagrees with the article results, 
 
 Figure \@ref(fig:roc1) and figure \@ref(fig:roc2) display the ROC curves for the male and female security level models, both showing an AUC larger than 70% meaning both are models with good prediction powers. However, unlike the article suggesting the male model have a higher AUC than the female model, the current female model is showing a small amount of extra prediction power compare to the male model. Given that none of the race effects in the female model are statistically significant, this implies that the control variables play a more important role in security level assessments for females than for males. Both ROC curves indicate that an optimal choice of threshold would result in a TPP around 80% with FPP around 25%, which is generally considered as a good amount of trade-off between TPP and FPP.
 
-```{r roc1, fig.cap = "ROC Male Security Level Model", echo = FALSE, message = FALSE, out.width="70%"}
+```{r roc1, fig.cap = "ROC Male Security Level Model", echo = FALSE, message = FALSE, out.width="70%", fig.align = 'center'}
 Pred1 <- predict(model1m, newdata = data1m)
 Pred1 <- data.frame(Pred1)
 #create prediction dataset
@@ -463,7 +463,7 @@ roc1 <- roc(data1m$MAXSEC, Pred1$Estimate,
             percent = TRUE)
 ```
 
-```{r roc2, fig.cap = "ROC Female Security Level Model", echo = FALSE, message = FALSE, out.width="70%"}
+```{r roc2, fig.cap = "ROC Female Security Level Model", echo = FALSE, message = FALSE, out.width="70%", fig.align = 'center'}
 Pred2 <- predict(model1f, newdata = data1f)
 Pred2 <- data.frame(Pred2)
 #create prediction dataset
@@ -504,7 +504,7 @@ Similar to the female model for offender security level, the resultant race effe
 
 Figure \@ref(fig:roc3) and figure \@ref(fig:roc4) display the ROC curves for the male and female reintegration potential models, both showing an AUC around 80% meaning both models have very good prediction power. Unlike the article suggesting the male model have a higher AUC than the female model, the two models for reintegration potential have similar AUC. The male model ROC curve indicates an optimal choice of threshold would result in a TPP around 90% with FPP around 30%. Meanwhile, the female model ROC curve indicates an optimal choice of threshold would result in a TPP around 80% with FPP around 20%. Given that they have similar AUC, this demonstrates the trade-off between TPP and FPP: higher TPP would result in higher FPP. As a metric measure of ROC curves, the AUC is similar for the two ROC curves since their optimal trade-off ratio is similar.
 
-```{r roc3, fig.cap = "ROC Male Reintegration Model", echo = FALSE, message = FALSE, out.width="70%"}
+```{r roc3, fig.cap = "ROC Male Reintegration Model", echo = FALSE, message = FALSE, out.width="70%", fig.align = 'center'}
 Pred3 <- predict(model2m, newdata = data2m)
 Pred3 <- data.frame(Pred3)
 #create prediction dataset
@@ -522,7 +522,7 @@ roc3 <- roc(data2m$LOWINT, Pred3$Estimate,
             percent = TRUE)
 ```
 
-```{r roc4, fig.cap = "ROC Female Reintegration Model", echo = FALSE, message = FALSE, out.width="70%"}
+```{r roc4, fig.cap = "ROC Female Reintegration Model", echo = FALSE, message = FALSE, out.width="70%", fig.align = 'center'}
 Pred4 <- predict(model2f, newdata = data2f)
 Pred4 <- data.frame(Pred4)
 #create prediction dataset
@@ -575,24 +575,24 @@ It is also unfortunate that the third logistic regression model assessing the li
 
 # Appendix {-}
 
-```{r trace1, fig.cap = "Trace plots for male security level model", echo = FALSE, message = FALSE, out.width="80%"}
+```{r trace1, fig.cap = "Trace plots for male security level model", echo = FALSE, message = FALSE, out.width="80%", fig.align = 'center'}
 mcmc_plot(model1m, type = "trace")
 #no divergence during the chains 
 ```
 
-```{r trace2, fig.cap = "Trace plots for female security level model", echo = FALSE, message = FALSE, out.width="80%"}
+```{r trace2, fig.cap = "Trace plots for female security level model", echo = FALSE, message = FALSE, out.width="80%", fig.align = 'center'}
 
 mcmc_plot(model1f, type = "trace")
 #no divergence during the chains in all models
 ```
 
-```{r trace3, fig.cap = "Trace plots for male reintegration potential model", echo = FALSE, message = FALSE, out.width="80%"}
+```{r trace3, fig.cap = "Trace plots for male reintegration potential model", echo = FALSE, message = FALSE, out.width="80%", fig.align = 'center'}
 mcmc_plot(model2m, type = "trace")
 
 #no divergence during the chains in all models
 ```
 
-```{r trace4, fig.cap = "Trace plots for female reintegration potential model", echo = FALSE, message = FALSE, out.width="80%"}
+```{r trace4, fig.cap = "Trace plots for female reintegration potential model", echo = FALSE, message = FALSE, out.width="80%", fig.align = 'center'}
 mcmc_plot(model2f, type = "trace")
 #no divergence during the chains in all models
 ```
